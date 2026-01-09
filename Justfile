@@ -11,7 +11,7 @@ deps:
   if [ -f {{BACKEND_DIR}}/package.json ]; then (cd {{BACKEND_DIR}} && {{BUN}} install); else echo "skip: {{BACKEND_DIR}}/package.json not found"; fi
 
 dev:
-  just --parallel dev-frontend dev-backend
+  just -j 2 dev-frontend dev-backend
 
 dev-frontend:
   if [ -f {{FRONTEND_DIR}}/package.json ]; then (cd {{FRONTEND_DIR}} && {{BUN}} run dev); else echo "skip: {{FRONTEND_DIR}}/package.json not found"; fi
