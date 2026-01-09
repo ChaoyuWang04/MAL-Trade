@@ -30,7 +30,8 @@ frontend/
 ├── hooks/                    # 前端 hooks
 ├── lib/                      # 前端工具（format、fetcher、ws client）
 ├── styles/                   # 全局样式
-└── public/                   # 静态资源
+├── public/                   # 静态资源
+└── tsconfig.json             # Next.js 插件配置（包含 .next/types）
 ```
 
 ## backend/（后端）
