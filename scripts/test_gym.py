@@ -52,6 +52,16 @@ def parse_timestamp(ts_str):
         return None
 
 
+def extract_close(state):
+    candle = state.get("candle")
+    if not isinstance(candle, dict):
+        return None
+    bar = candle.get("bar")
+    if not isinstance(bar, dict):
+        return None
+    return bar.get("close")
+
+
 def verify_backtest():
     payload = {
         "mode": "backtest",
@@ -82,7 +92,7 @@ def verify_live():
     deadline = time.time() + 20
     while time.time() < deadline:
         state1 = request("GET", f"/state/{session_id}")
-        p1 = state1.get("candle", {}).get("bar", {}).get("close")
+        p1 = extract_close(state1)
         if p1 is not None:
             break
         time.sleep(1)
@@ -90,7 +100,7 @@ def verify_live():
         raise RuntimeError("Live price missing after waiting for websocket")
     time.sleep(5)
     state2 = request("GET", f"/state/{session_id}")
-    p2 = state2.get("candle", {}).get("bar", {}).get("close")
+    p2 = extract_close(state2)
     log(f"Live price samples: p1={p1}, p2={p2}")
 
 
