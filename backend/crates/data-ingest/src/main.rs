@@ -157,26 +157,29 @@ async fn convert(paths: &DataPaths, year: u32, month: u32, day: Option<u32>) -> 
 
     let reader = CsvReadOptions::default()
         .with_has_header(false)
-        .with_columns(Some(
-            vec![
-                "open_time".to_string(),
-                "open".into(),
-                "high".into(),
-                "low".into(),
-                "close".into(),
-                "volume".into(),
-                "close_time".into(),
-                "quote_asset_volume".into(),
-                "trades".into(),
-                "taker_buy_base".into(),
-                "taker_buy_quote".into(),
-                "ignore".into(),
-            ]
-            .into(),
-        ))
         .into_reader_with_file_handle(Cursor::new(csv_bytes));
 
-    let df = reader.finish().context("parse csv")?;
+    let mut df = reader.finish().context("parse csv")?;
+    let desired = [
+        "open_time",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "close_time",
+        "quote_asset_volume",
+        "trades",
+        "taker_buy_base",
+        "taker_buy_quote",
+        "ignore",
+    ];
+    for (idx, name) in desired.iter().enumerate() {
+        let current = format!("column_{}", idx + 1);
+        df.rename(&current, name)
+            .with_context(|| format!("rename {current} -> {name}"))?;
+    }
+
     let df = df
         .lazy()
         .select([
@@ -255,8 +258,8 @@ async fn download_with_retry(url: &str, dest: &Path, retries: u8) -> Result<()> 
 
 fn vision_url(symbol: &str, year: u32, month: u32, day: Option<u32>) -> String {
     match day {
-        Some(day) => format!("https://data.binance.vision/data/spot/daily/klines/{symbol}/1m/{symbol}-1m-{year:04}-{month:02}-{day:02}.csv.zip"),
-        None => format!("https://data.binance.vision/data/spot/monthly/klines/{symbol}/1m/{symbol}-1m-{year:04}-{month:02}.csv.zip"),
+        Some(day) => format!("https://data.binance.vision/data/spot/daily/klines/{symbol}/1m/{symbol}-1m-{year:04}-{month:02}-{day:02}.zip"),
+        None => format!("https://data.binance.vision/data/spot/monthly/klines/{symbol}/1m/{symbol}-1m-{year:04}-{month:02}.zip"),
     }
 }
 

@@ -36,8 +36,8 @@ impl DataPaths {
 
     pub fn raw_zip_path(&self, year: u32, month: u32, day: Option<u32>) -> PathBuf {
         let name = match day {
-            Some(day) => format!("{}-1m-{year:04}-{month:02}-{day:02}.csv.zip", self.symbol),
-            None => format!("{}-1m-{year:04}-{month:02}.csv.zip", self.symbol),
+            Some(day) => format!("{}-1m-{year:04}-{month:02}-{day:02}.zip", self.symbol),
+            None => format!("{}-1m-{year:04}-{month:02}.zip", self.symbol),
         };
         self.raw_csv_dir().join(name)
     }

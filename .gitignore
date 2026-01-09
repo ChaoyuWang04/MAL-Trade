@@ -11,6 +11,7 @@ __pycache__/
 venv/
 target/
 backend/target/
+backend/data/
 
 # 构建产物
 dist/
