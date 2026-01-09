@@ -78,13 +78,19 @@ def verify_live():
     payload = {"mode": "live", "symbol": "BTCUSDT", "initial_cash": 10000}
     sess = request("POST", "/session", payload)
     session_id = sess["session_id"]
-    state1 = request("GET", f"/state/{session_id}")
-    p1 = state1.get("candle", {}).get("bar", {}).get("close")
+    p1 = None
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        state1 = request("GET", f"/state/{session_id}")
+        p1 = state1.get("candle", {}).get("bar", {}).get("close")
+        if p1 is not None:
+            break
+        time.sleep(1)
+    if p1 is None:
+        raise RuntimeError("Live price missing after waiting for websocket")
     time.sleep(5)
     state2 = request("GET", f"/state/{session_id}")
     p2 = state2.get("candle", {}).get("bar", {}).get("close")
-    if p1 is None:
-        raise RuntimeError("Live price missing on first poll")
     log(f"Live price samples: p1={p1}, p2={p2}")
 
 
