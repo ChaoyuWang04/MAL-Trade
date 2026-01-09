@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -9,18 +10,21 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use chrono::{Duration as ChronoDuration, Utc};
+use chrono::TimeZone;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 use backtester::{run_backtest, BacktestConfig};
-use core::{Action, ActionSide, Bar, FeatureFrame};
+use core::DataSource;
+use core::{Action, ActionSide, FeatureFrame};
 use feature_engine::{compute_features, IndicatorConfig};
+use storage::{DataPaths, ParquetDataSource};
 
 #[derive(Clone)]
 struct AppState {
     symbol: String,
+    data_root: PathBuf,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +33,13 @@ struct BacktestRequest {
     symbol: String,
     #[serde(default = "default_cash")]
     initial_cash: f64,
+    /// Start timestamp ms since epoch
+    start_ms: Option<i64>,
+    /// End timestamp ms since epoch
+    end_ms: Option<i64>,
+    /// Fallback window bars if start/end not provided
+    #[serde(default = "default_window")]
+    window: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -44,6 +55,10 @@ fn default_cash() -> f64 {
     10_000.0
 }
 
+fn default_window() -> usize {
+    500
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
@@ -51,6 +66,7 @@ async fn main() -> Result<()> {
 
     let app_state = AppState {
         symbol: default_symbol(),
+        data_root: PathBuf::from("."),
     };
 
     let app = Router::new()
@@ -92,12 +108,28 @@ async fn run_backtest_handler(
 
 async fn build_and_run(state: &AppState, req: BacktestRequest) -> Result<BacktestResponse> {
     let symbol = req.symbol.clone();
-    let bars = demo_bars(&symbol);
+    let data_paths = DataPaths::new(&state.data_root, &symbol);
+    let source = ParquetDataSource::new(data_paths);
+
+    let bars = if let (Some(start_ms), Some(end_ms)) = (req.start_ms, req.end_ms) {
+        let start = chrono::Utc
+            .timestamp_millis_opt(start_ms)
+            .single()
+            .ok_or_else(|| anyhow::anyhow!("invalid start_ms"))?;
+        let end = chrono::Utc
+            .timestamp_millis_opt(end_ms)
+            .single()
+            .ok_or_else(|| anyhow::anyhow!("invalid end_ms"))?;
+        source.fetch_ohlcv(start, end)?
+    } else {
+        source.latest_window(req.window)?
+    };
+
     let frame = compute_features(symbol.clone(), &bars, IndicatorConfig::default())?;
     let actions = frame
         .rows
         .iter()
-        .map(|_| Action::new(symbol.clone(), ActionSide::Hold, 0.0, Some("demo".into())))
+        .map(|_| Action::new(symbol.clone(), ActionSide::Hold, 0.0, Some("hold".into())))
         .collect::<Vec<_>>();
     let result = run_backtest(
         &actions,
@@ -112,28 +144,6 @@ async fn build_and_run(state: &AppState, req: BacktestRequest) -> Result<Backtes
     )?;
     info!(symbol = %state.symbol, trades = result.trades.len(), "backtest complete");
     Ok(BacktestResponse { result })
-}
-
-fn demo_bars(symbol: &str) -> Vec<Bar> {
-    let now = Utc::now();
-    let mut bars = Vec::new();
-    for i in 0..120 {
-        let open_time = now - ChronoDuration::minutes(120 - i as i64);
-        let close_time = open_time + ChronoDuration::minutes(1);
-        let price = 50_000.0 + (i as f64 * 5.0);
-        bars.push(Bar {
-            open_time,
-            close_time,
-            open: price,
-            high: price * 1.002,
-            low: price * 0.998,
-            close: price * 1.001,
-            volume: 10.0 + i as f64,
-            trades: 100 + i as u64,
-        });
-    }
-    let _ = symbol; // reserved for future multi-symbol routing
-    bars
 }
 
 async fn shutdown_signal() {

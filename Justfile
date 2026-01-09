@@ -54,6 +54,9 @@ lint-frontend:
 lint-backend:
   if [ -f {{BACKEND_MANIFEST}} ]; then (cd {{BACKEND_DIR}} && cargo fmt --all && cargo clippy --workspace -- -D warnings); else echo "skip: {{BACKEND_MANIFEST}} not found"; fi
 
+download-history symbol year month:
+  if [ -f {{BACKEND_MANIFEST}} ]; then (cd {{BACKEND_DIR}} && cargo run -p data-ingest -- ingest --symbol {{symbol}} --year {{year}} --month {{month}}); else echo "skip: {{BACKEND_MANIFEST}} not found"; fi
+
 deploy:
   just deploy-frontend
   just deploy-backend

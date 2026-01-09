@@ -27,3 +27,5 @@ uuid = { version = "1", features = ["v4", "serde"] }
 clap = { version = "4.5.20", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "fs"] }
 axum = "0.7"
+polars = { version = "0.42", features = ["lazy", "parquet", "temporal", "dtype-datetime", "dtype-date", "dtype-time", "csv"] }
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
