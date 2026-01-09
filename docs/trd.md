@@ -290,6 +290,7 @@ Replay：用保存的 snapshots 重跑，结果应一致（或在可解释范围
 - 观测：
   - 最少：结构化日志（每 tick 一条 summary）
   - 可选：Sentry（前端错误上报）
+ - 包管理：Bun（通过 Justfile 统一命令入口）
 
 ---
 
