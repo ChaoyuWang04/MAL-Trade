@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::Result;
 use axum::{
-    extract::{Path, State},
+    extract::{Path as AxumPath, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -29,6 +29,21 @@ struct AppState {
     symbol: String,
     data_root: PathBuf,
     sessions: SessionManager,
+}
+
+fn seed_latest(data_root: &Path, symbol: &str) -> Option<FeatureBar> {
+    let paths = DataPaths::new(data_root, symbol);
+    let source = ParquetDataSource::new(paths);
+    match source.latest_window(1) {
+        Ok(mut bars) => bars.pop().map(|bar| FeatureBar {
+            bar,
+            ema_fast: None,
+            ema_slow: None,
+            rsi: None,
+            cmf: None,
+        }),
+        Err(_) => None,
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -202,7 +217,11 @@ async fn create_session(
         SessionMode::Live => {
             state
                 .sessions
-                .create_live(req.initial_cash, &req.symbol)
+                .create_live(
+                    req.initial_cash,
+                    &req.symbol,
+                    seed_latest(&state.data_root, &req.symbol),
+                )
                 .await
         }
     };
@@ -232,7 +251,10 @@ struct StateResponse {
     wallet: AccountState,
 }
 
-async fn session_state(State(state): State<AppState>, Path(id): Path<String>) -> impl IntoResponse {
+async fn session_state(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> impl IntoResponse {
     let parsed = Uuid::parse_str(&id);
     if parsed.is_err() {
         return (
@@ -279,7 +301,7 @@ struct ActionResponse {
 
 async fn apply_action(
     State(state): State<AppState>,
-    Path(id): Path<String>,
+    AxumPath(id): AxumPath<String>,
     Json(req): Json<ActionRequest>,
 ) -> impl IntoResponse {
     let parsed = Uuid::parse_str(&id);

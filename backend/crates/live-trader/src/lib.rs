@@ -48,8 +48,12 @@ pub struct LiveSource {
 }
 
 impl LiveSource {
-    pub fn new(symbol: &str) -> Self {
+    pub fn new(symbol: &str, seed: Option<FeatureBar>) -> Self {
         let latest = Arc::new(RwLock::new(None));
+        if let Some(fb) = seed {
+            let mut lock = futures::executor::block_on(latest.write());
+            *lock = Some(fb);
+        }
         Self::spawn_ws(symbol.to_string(), latest.clone());
         Self { latest }
     }
@@ -230,12 +234,17 @@ impl SessionManager {
         Ok(id)
     }
 
-    pub async fn create_live(&self, initial_cash: f64, symbol: &str) -> Result<Uuid> {
+    pub async fn create_live(
+        &self,
+        initial_cash: f64,
+        symbol: &str,
+        seed: Option<FeatureBar>,
+    ) -> Result<Uuid> {
         let mut map = self.inner.lock().await;
         let id = Uuid::new_v4();
         map.insert(
             id,
-            Session::new(id, Box::new(LiveSource::new(symbol)), initial_cash),
+            Session::new(id, Box::new(LiveSource::new(symbol, seed)), initial_cash),
         );
         Ok(id)
     }
