@@ -43,7 +43,7 @@
 - `just test`：运行测试
 - `just lint`：代码规范检查
 - `just deploy`：部署（如已配置）
-注：`just dev` 内部使用 `just -j 2 dev-frontend dev-backend` 并行启动。
+注：`just dev` 内部使用 shell 后台并行启动 `dev-frontend` 与 `dev-backend`。
 
 ---
 
