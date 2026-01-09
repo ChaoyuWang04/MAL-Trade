@@ -12,23 +12,29 @@ Think ultra hard. Plan doc reading wisely (context limits). Always articulate re
 
 ### Technology Stack
 <!-- Update this section per project per progression -->
-- **Framework**: [e.g., Next.js 14, Django 4.2]
-- **Language**: [e.g., TypeScript, Python 3.11]
-- **Database**: [e.g., PostgreSQL 15, MongoDB]
-- **Styling**: [e.g., Tailwind CSS, styled-components]
-- **State Management**: [e.g., Redux, Zustand, Context API]
-- **Testing**: [e.g., Jest, Pytest, Cypress]
+- **Framework**: Next.js (App Router) + React
+- **Language**: TypeScript
+- **Runtime**: Node.js
+- **Backend**: Fastify + WebSocket (ws)
+- **Database**: PostgreSQL (Neon/Supabase)
+- **Styling**: Tailwind CSS
+- **Component Library**: shadcn/ui (Radix UI primitives)
+- **Motion & Charts**: Framer Motion + TradingView Lightweight Charts (+ Recharts)
+- **State Management**: TanStack Query + Zustand
+- **Chain**: Moonbeam Moonbase Alpha (Polkadot EVM)
+- **Testing**: TBD (define via Justfile)
 
 ## 🛠️ Build, Test & Development
 ### Common Commands
 <!-- Update this section per project per progression-->
 | Task | Command | Purpose |
 |------|---------|---------|
-| **Install deps** | `[npm install / go mod tidy / pip install -r requirements.txt]` | Sync dependencies |
-| **Dev server** | `[npm run dev / go run ./cmd/api / python manage.py runserver]` | Local development |
-| **Build** | `[npm run build / go build ./cmd/api / docker build]` | Create production artifacts |
-| **Test** | `[npm test / go test ./... / pytest]` | Run test suite |
-| **Lint** | `[npm run lint / golangci-lint run / ruff check]` | Code quality check |
+| **Install deps** | `just deps` | Sync dependencies |
+| **Dev server** | `just dev` | Local development |
+| **Build** | `just build` | Create production artifacts |
+| **Test** | `just test` | Run test suite |
+| **Lint** | `just lint` | Code quality check |
+| **Deploy** | `just deploy` | Deployment (if configured) |
 ### Development Workflow
 **Daily**: Install deps → Start dev servers (optional) → Make changes
 **Pre-commit (REQUIRED)**: Run build commands to verify compilation → Optional: test + lint
@@ -98,12 +104,12 @@ This verification ensures changes meet design standards and user requirements.
 <!-- Update this section per project per progression-->
 | Config | Value |
 |--------|-------|
-| **Library** | `[shadcn/ui / MUI / Ant Design]` |
-| **Base** | `[Radix UI primitives / Material Design / ...]` |
-| **Components Path** | `[/src/components/ui/ / /src/components/]` |
-| **Styling** | `[Tailwind CSS + CSS variables / Emotion / styled-components]` |
-| **Icons** | `[Lucide React / MUI Icons / Heroicons]` |
-| **Theme** | `[CSS variables / ThemeProvider / ConfigProvider]` |
+| **Library** | shadcn/ui |
+| **Base** | Radix UI primitives |
+| **Components Path** | `frontend/src/components/ui/` (default shadcn path) |
+| **Styling** | Tailwind CSS + CSS variables |
+| **Icons** | lucide-react |
+| **Theme** | Tailwind CSS variables |
 ### Usage Rules
 - ✅ Use library components first before building custom
 - ✅ Follow library's composition patterns
@@ -113,7 +119,7 @@ This verification ensures changes meet design standards and user requirements.
 ## 🧪 Testing Guidelines
 ### Test Commands
 <!-- Update this section per project per progression-->
-`[just test / npm test / go test ./... / pytest]` - Backend: `[go test ./... / pytest / jest]` - Frontend: `[npm test / jest / vitest]`
+`just test` - Backend: `just test-backend` - Frontend: `just test-frontend`
 ### Test Organization
 **Backend**: Co-locate tests with code - `[service/user_test.go / test_user_service.py / user.test.ts]` - **Frontend**: Mirror folder structure - `[Component.test.tsx / useHook.test.ts / component.spec.js]` - **Shared**: Fixtures in `shared/` for cross-layer reuse
 ### Coverage Priorities
@@ -153,4 +159,3 @@ OpenAPI Schema → Generate Types → Update Implementation
 | `[sync-backend-cmd]` | Generate backend types/server code |
 ### ⚠️ Critical Rules
 Never manually edit `[*.gen.* / generated files]` - All interface changes from OpenAPI yaml - PRs must include proof of sync commands
-
