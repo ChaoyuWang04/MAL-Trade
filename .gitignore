@@ -1,0 +1,23 @@
+# 环境变量 - 最重要！
+.env
+.env.local
+*.key
+*.pem
+
+# 依赖
+node_modules/
+.bun/
+__pycache__/
+venv/
+
+# 构建产物
+dist/
+build/
+.next/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
