@@ -7,6 +7,7 @@ members = [
   "crates/backtester",
   "crates/llm-agent",
   "crates/api",
+  "crates/live-trader",
 ]
 resolver = "2"
 
@@ -29,3 +30,6 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "fs"
 axum = "0.7"
 polars = { version = "0.42", features = ["lazy", "parquet", "temporal", "dtype-datetime", "dtype-date", "dtype-time", "csv"] }
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
+async-trait = "0.1"
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+futures = "0.3"

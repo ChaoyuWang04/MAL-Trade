@@ -1,6 +1,6 @@
 use chrono::{Duration, Utc};
-use core::{Bar, Symbol};
 use feature_engine::{compute_features, IndicatorConfig};
+use mtrade_core::{Bar, Symbol};
 
 fn fixture_bars() -> Vec<Bar> {
     let base = Utc::now();

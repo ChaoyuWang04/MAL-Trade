@@ -15,7 +15,7 @@ use tokio::time::sleep;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use core::Symbol;
+use mtrade_core::Symbol;
 use storage::{DataPaths, Offsets};
 
 #[derive(Parser, Debug)]

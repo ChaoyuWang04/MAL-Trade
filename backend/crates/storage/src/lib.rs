@@ -6,7 +6,7 @@ use chrono::{TimeZone, Utc};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use core::{Bar, DataSource, DataSourceError};
+use mtrade_core::{Bar, DataSource, DataSourceError};
 
 #[derive(Debug, Clone)]
 pub struct DataPaths {

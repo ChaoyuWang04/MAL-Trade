@@ -4,27 +4,31 @@ use std::time::Duration;
 
 use anyhow::Result;
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use chrono::TimeZone;
+use futures::executor;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
+use uuid::Uuid;
 
 use backtester::{run_backtest, BacktestConfig};
-use core::DataSource;
-use core::{Action, ActionSide, FeatureFrame};
 use feature_engine::{compute_features, IndicatorConfig};
+use live_trader::SessionManager;
+use mtrade_core::DataSource;
+use mtrade_core::{AccountState, Action, ActionSide, BacktestResult, FeatureBar, FeatureFrame};
 use storage::{DataPaths, ParquetDataSource};
 
 #[derive(Clone)]
 struct AppState {
     symbol: String,
     data_root: PathBuf,
+    sessions: SessionManager,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,7 +48,7 @@ struct BacktestRequest {
 
 #[derive(Debug, Serialize)]
 struct BacktestResponse {
-    result: core::BacktestResult,
+    result: BacktestResult,
 }
 
 fn default_symbol() -> String {
@@ -67,11 +71,15 @@ async fn main() -> Result<()> {
     let app_state = AppState {
         symbol: default_symbol(),
         data_root: PathBuf::from("."),
+        sessions: SessionManager::new(),
     };
 
     let app = Router::new()
         .route("/health", get(health))
         .route("/backtests", post(run_backtest_handler))
+        .route("/session", post(create_session))
+        .route("/state/:id", get(session_state))
+        .route("/action/:id", post(apply_action))
         .with_state(app_state);
 
     let addr: SocketAddr = "0.0.0.0:3001".parse().expect("bind address");
@@ -144,6 +152,197 @@ async fn build_and_run(state: &AppState, req: BacktestRequest) -> Result<Backtes
     )?;
     info!(symbol = %state.symbol, trades = result.trades.len(), "backtest complete");
     Ok(BacktestResponse { result })
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum SessionMode {
+    Backtest,
+    Live,
+}
+
+#[derive(Debug, Deserialize)]
+struct SessionRequest {
+    mode: SessionMode,
+    #[serde(default = "default_symbol")]
+    symbol: String,
+    #[serde(default = "default_cash")]
+    initial_cash: f64,
+    start_ms: Option<i64>,
+    end_ms: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+struct SessionResponse {
+    session_id: String,
+    mode: String,
+}
+
+async fn create_session(
+    State(state): State<AppState>,
+    Json(req): Json<SessionRequest>,
+) -> impl IntoResponse {
+    let resp = match req.mode {
+        SessionMode::Backtest => {
+            let start_ms = req.start_ms.unwrap_or(0);
+            let end_ms = req.end_ms.unwrap_or(0);
+            if start_ms == 0 || end_ms == 0 {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": "start_ms/end_ms required for backtest"})),
+                )
+                    .into_response();
+            }
+            let paths = DataPaths::new(&state.data_root, &req.symbol);
+            state
+                .sessions
+                .create_backtest(&req.symbol, paths, start_ms, end_ms, req.initial_cash)
+                .await
+        }
+        SessionMode::Live => {
+            state
+                .sessions
+                .create_live(req.initial_cash, &req.symbol)
+                .await
+        }
+    };
+
+    match resp {
+        Ok(id) => (
+            StatusCode::OK,
+            Json(SessionResponse {
+                session_id: id.to_string(),
+                mode: format!("{:?}", req.mode),
+            }),
+        )
+            .into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": err.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct StateResponse {
+    session_id: String,
+    mode: String,
+    candle: Option<FeatureBar>,
+    wallet: AccountState,
+}
+
+async fn session_state(State(state): State<AppState>, Path(id): Path<String>) -> impl IntoResponse {
+    let parsed = Uuid::parse_str(&id);
+    if parsed.is_err() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "invalid session id"})),
+        )
+            .into_response();
+    }
+    let id = parsed.unwrap();
+    let resp = state
+        .sessions
+        .with_session(id, |session| {
+            let candle = executor::block_on(session.source.next_candle());
+            Ok(StateResponse {
+                session_id: id.to_string(),
+                mode: format!("{:?}", session.source.mode()),
+                candle,
+                wallet: session.wallet.clone(),
+            })
+        })
+        .await;
+
+    match resp {
+        Ok(body) => (StatusCode::OK, Json(body)).into_response(),
+        Err(err) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": err.to_string()})),
+        )
+            .into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ActionRequest {
+    action: String,
+    size_pct: f64,
+}
+
+#[derive(Debug, Serialize)]
+struct ActionResponse {
+    session_id: String,
+    wallet: AccountState,
+}
+
+async fn apply_action(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<ActionRequest>,
+) -> impl IntoResponse {
+    let parsed = Uuid::parse_str(&id);
+    if parsed.is_err() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "invalid session id"})),
+        )
+            .into_response();
+    }
+    let id = parsed.unwrap();
+    let resp = state
+        .sessions
+        .with_session(id, |session| {
+            let side = match req.action.to_uppercase().as_str() {
+                "BUY" => ActionSide::Buy,
+                "SELL" => ActionSide::Sell,
+                _ => ActionSide::Hold,
+            };
+            let latest = executor::block_on(session.source.next_candle());
+            if let Some(candle) = latest {
+                match side {
+                    ActionSide::Buy => {
+                        let spend = session.wallet.cash * req.size_pct;
+                        if spend > 0.0 {
+                            let qty = spend / candle.bar.close;
+                            session.wallet.cash -= spend;
+                            session.wallet.position_qty += qty;
+                            session.wallet.position_avg_price = candle.bar.close;
+                        }
+                    }
+                    ActionSide::Sell => {
+                        let qty = session.wallet.position_qty * req.size_pct;
+                        if qty > 0.0 {
+                            let proceeds = qty * candle.bar.close;
+                            session.wallet.cash += proceeds;
+                            session.wallet.position_qty -= qty;
+                            if session.wallet.position_qty <= f64::EPSILON {
+                                session.wallet.position_avg_price = 0.0;
+                                session.wallet.position_qty = 0.0;
+                            }
+                        }
+                    }
+                    ActionSide::Hold => {}
+                }
+                let position_value = session.wallet.position_qty * candle.bar.close;
+                session.wallet.equity = session.wallet.cash + position_value;
+            }
+            Ok(ActionResponse {
+                session_id: id.to_string(),
+                wallet: session.wallet.clone(),
+            })
+        })
+        .await;
+
+    match resp {
+        Ok(body) => (StatusCode::OK, Json(body)).into_response(),
+        Err(err) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": err.to_string()})),
+        )
+            .into_response(),
+    }
 }
 
 async fn shutdown_signal() {

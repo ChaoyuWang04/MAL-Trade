@@ -1,5 +1,5 @@
 use anyhow::Result;
-use core::{Bar, FeatureBar, FeatureFrame, Symbol};
+use mtrade_core::{Bar, FeatureBar, FeatureFrame, Symbol};
 
 #[derive(Debug, Clone)]
 pub struct IndicatorConfig {

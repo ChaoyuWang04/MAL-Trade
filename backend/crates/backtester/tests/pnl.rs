@@ -1,6 +1,6 @@
 use backtester::{run_backtest, BacktestConfig};
 use chrono::{Duration, Utc};
-use core::{Action, ActionSide, Bar, FeatureBar, FeatureFrame, Symbol};
+use mtrade_core::{Action, ActionSide, Bar, FeatureBar, FeatureFrame, Symbol};
 
 fn bars_and_features() -> FeatureFrame {
     let base = Utc::now();

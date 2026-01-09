@@ -1,5 +1,5 @@
 use anyhow::Result;
-use core::{AccountState, Action, ActionSide, BacktestResult, FeatureFrame, TradeEvent};
+use mtrade_core::{AccountState, Action, ActionSide, BacktestResult, FeatureFrame, TradeEvent};
 
 #[derive(Debug, Clone)]
 pub struct BacktestConfig {

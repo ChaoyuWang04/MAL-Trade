@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
-core = { path = "../core" }
+mtrade_core = { path = "../core", package = "core" }

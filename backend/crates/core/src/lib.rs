@@ -162,3 +162,5 @@ pub enum ValidationError {
     #[error("size_pct out of range: {0}")]
     SizeOutOfRange(f64),
 }
+
+pub mod market;

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use core::{Action, ActionSide, Symbol};
+use mtrade_core::{Action, ActionSide, Symbol};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
