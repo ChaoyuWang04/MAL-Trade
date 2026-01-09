@@ -1,0 +1,17 @@
+[package]
+name = "data-ingest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "json"] }
+core = { path = "../core" }
+storage = { path = "../storage" }

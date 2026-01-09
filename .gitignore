@@ -9,6 +9,8 @@ node_modules/
 .bun/
 __pycache__/
 venv/
+target/
+backend/target/
 
 # 构建产物
 dist/

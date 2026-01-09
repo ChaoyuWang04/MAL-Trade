@@ -3,12 +3,13 @@ set shell := ["bash", "-cu"]
 BUN := "~/.bun/bin/bun"
 FRONTEND_DIR := "frontend"
 BACKEND_DIR := "backend"
+BACKEND_MANIFEST := "{{BACKEND_DIR}}/Cargo.toml"
 
 default: dev
 
 deps:
   if [ -f {{FRONTEND_DIR}}/package.json ]; then (cd {{FRONTEND_DIR}} && {{BUN}} install); else echo "skip: {{FRONTEND_DIR}}/package.json not found"; fi
-  if [ -f {{BACKEND_DIR}}/package.json ]; then (cd {{BACKEND_DIR}} && {{BUN}} install); else echo "skip: {{BACKEND_DIR}}/package.json not found"; fi
+  if [ -f {{BACKEND_MANIFEST}} ]; then (cd {{BACKEND_DIR}} && cargo fetch); else echo "skip: {{BACKEND_MANIFEST}} not found"; fi
 
 dev:
   @set -euo pipefail
@@ -21,7 +22,7 @@ dev-frontend:
   if [ -f {{FRONTEND_DIR}}/package.json ]; then (cd {{FRONTEND_DIR}} && {{BUN}} run dev); else echo "skip: {{FRONTEND_DIR}}/package.json not found"; fi
 
 dev-backend:
-  if [ -f {{BACKEND_DIR}}/package.json ]; then (cd {{BACKEND_DIR}} && {{BUN}} run dev); else echo "skip: {{BACKEND_DIR}}/package.json not found"; fi
+  if [ -f {{BACKEND_MANIFEST}} ]; then (cd {{BACKEND_DIR}} && cargo run -p api); else echo "skip: {{BACKEND_MANIFEST}} not found"; fi
 
 build:
   just build-frontend
@@ -31,7 +32,7 @@ build-frontend:
   if [ -f {{FRONTEND_DIR}}/package.json ]; then (cd {{FRONTEND_DIR}} && {{BUN}} run build); else echo "skip: {{FRONTEND_DIR}}/package.json not found"; fi
 
 build-backend:
-  if [ -f {{BACKEND_DIR}}/package.json ]; then (cd {{BACKEND_DIR}} && {{BUN}} run build); else echo "skip: {{BACKEND_DIR}}/package.json not found"; fi
+  if [ -f {{BACKEND_MANIFEST}} ]; then (cd {{BACKEND_DIR}} && cargo build --workspace); else echo "skip: {{BACKEND_MANIFEST}} not found"; fi
 
 test:
   just test-frontend
@@ -41,7 +42,7 @@ test-frontend:
   if [ -f {{FRONTEND_DIR}}/package.json ]; then (cd {{FRONTEND_DIR}} && {{BUN}} run test); else echo "skip: {{FRONTEND_DIR}}/package.json not found"; fi
 
 test-backend:
-  if [ -f {{BACKEND_DIR}}/package.json ]; then (cd {{BACKEND_DIR}} && {{BUN}} run test); else echo "skip: {{BACKEND_DIR}}/package.json not found"; fi
+  if [ -f {{BACKEND_MANIFEST}} ]; then (cd {{BACKEND_DIR}} && cargo test --workspace); else echo "skip: {{BACKEND_MANIFEST}} not found"; fi
 
 lint:
   just lint-frontend
@@ -51,7 +52,7 @@ lint-frontend:
   if [ -f {{FRONTEND_DIR}}/package.json ]; then (cd {{FRONTEND_DIR}} && {{BUN}} run lint); else echo "skip: {{FRONTEND_DIR}}/package.json not found"; fi
 
 lint-backend:
-  if [ -f {{BACKEND_DIR}}/package.json ]; then (cd {{BACKEND_DIR}} && {{BUN}} run lint); else echo "skip: {{BACKEND_DIR}}/package.json not found"; fi
+  if [ -f {{BACKEND_MANIFEST}} ]; then (cd {{BACKEND_DIR}} && cargo fmt --all && cargo clippy --workspace -- -D warnings); else echo "skip: {{BACKEND_MANIFEST}} not found"; fi
 
 deploy:
   just deploy-frontend
