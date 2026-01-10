@@ -50,6 +50,22 @@ pub enum ActionSide {
     Hold,
 }
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum OrderType {
+    Market,
+    Limit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Order {
+    pub id: String,
+    pub side: ActionSide,
+    pub order_type: OrderType,
+    pub price: f64,
+    pub quantity: f64,
+    pub created_at: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Action {
     pub id: Uuid,
@@ -85,6 +101,7 @@ pub struct AccountState {
     pub position_avg_price: f64,
     pub equity: f64,
     pub max_drawdown: f64,
+    pub open_orders: Vec<Order>,
 }
 
 impl AccountState {
@@ -95,6 +112,7 @@ impl AccountState {
             position_avg_price: 0.0,
             equity: cash,
             max_drawdown: 0.0,
+            open_orders: Vec::new(),
         }
     }
 }

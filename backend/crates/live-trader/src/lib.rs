@@ -14,7 +14,7 @@ use uuid::Uuid;
 use feature_engine::{compute_features, IndicatorConfig};
 use mtrade_core::market::{MarketMode, MarketSource};
 use mtrade_core::DataSource;
-use mtrade_core::{AccountState, FeatureBar};
+use mtrade_core::{AccountState, FeatureBar, Order, OrderType};
 use storage::{DataPaths, ParquetDataSource};
 
 pub struct BacktestSource {
@@ -199,6 +199,171 @@ impl Session {
             wallet: AccountState::flat(initial_cash),
             history: Vec::new(),
         }
+    }
+
+    pub fn check_fills(&mut self, candle: &FeatureBar) {
+        const FEE_RATE: f64 = 0.001;
+        let mut filled = Vec::new();
+        for (idx, order) in self.wallet.open_orders.iter().enumerate() {
+            match order.side {
+                mtrade_core::ActionSide::Buy => {
+                    if candle.bar.low <= order.price {
+                        let fee = order.price * order.quantity * FEE_RATE;
+                        // cash 已在下单时锁定
+                        self.wallet.cash -= fee;
+                        // 更新均价
+                        let total_cost_existing =
+                            self.wallet.position_avg_price * self.wallet.position_qty;
+                        let total_cost_new = order.price * order.quantity;
+                        let new_qty = self.wallet.position_qty + order.quantity;
+                        self.wallet.position_avg_price = if new_qty > 0.0 {
+                            (total_cost_existing + total_cost_new) / new_qty
+                        } else {
+                            0.0
+                        };
+                        self.wallet.position_qty = new_qty;
+                        filled.push(idx);
+                    }
+                }
+                mtrade_core::ActionSide::Sell => {
+                    if candle.bar.high >= order.price {
+                        let notional = order.price * order.quantity;
+                        let fee = notional * FEE_RATE;
+                        self.wallet.cash += notional - fee;
+                        // 头寸已在下单时锁定扣减
+                        filled.push(idx);
+                    }
+                }
+                mtrade_core::ActionSide::Hold => {}
+            }
+        }
+        // 从后往前移除，避免索引错位
+        for idx in filled.into_iter().rev() {
+            self.wallet.open_orders.remove(idx);
+        }
+        self.recalc_equity(candle.bar.close);
+    }
+
+    pub fn apply_action(
+        &mut self,
+        side: mtrade_core::ActionSide,
+        size_pct: f64,
+        order_type: OrderType,
+        price: Option<f64>,
+        order_id: Option<&str>,
+        last_price: Option<f64>,
+    ) {
+        const FEE_RATE: f64 = 0.001;
+        let now = Utc::now().timestamp_millis();
+        // 先处理取消
+        if let Some(cancel_id) = order_id {
+            if let Some(pos) = self
+                .wallet
+                .open_orders
+                .iter()
+                .position(|o| o.id == cancel_id)
+            {
+                let order = self.wallet.open_orders.remove(pos);
+                match order.side {
+                    mtrade_core::ActionSide::Buy => {
+                        self.wallet.cash += order.price * order.quantity;
+                    }
+                    mtrade_core::ActionSide::Sell => {
+                        self.wallet.position_qty += order.quantity;
+                    }
+                    _ => {}
+                }
+            }
+            return;
+        }
+
+        match order_type {
+            OrderType::Market => {
+                if let Some(ref_price) = last_price {
+                    match side {
+                        mtrade_core::ActionSide::Buy => {
+                            let spend = self.wallet.cash * size_pct;
+                            if spend > 0.0 && ref_price > 0.0 {
+                                let qty = spend / ref_price;
+                                let fee = spend * FEE_RATE;
+                                self.wallet.cash -= spend + fee;
+                                let total_cost_existing =
+                                    self.wallet.position_avg_price * self.wallet.position_qty;
+                                let new_qty = self.wallet.position_qty + qty;
+                                self.wallet.position_avg_price = if new_qty > 0.0 {
+                                    (total_cost_existing + spend) / new_qty
+                                } else {
+                                    0.0
+                                };
+                                self.wallet.position_qty = new_qty;
+                            }
+                        }
+                        mtrade_core::ActionSide::Sell => {
+                            let qty = self.wallet.position_qty * size_pct;
+                            if qty > 0.0 {
+                                let proceeds = qty * ref_price;
+                                let fee = proceeds * FEE_RATE;
+                                self.wallet.cash += proceeds - fee;
+                                self.wallet.position_qty -= qty;
+                                if self.wallet.position_qty <= f64::EPSILON {
+                                    self.wallet.position_avg_price = 0.0;
+                                    self.wallet.position_qty = 0.0;
+                                }
+                            }
+                        }
+                        mtrade_core::ActionSide::Hold => {}
+                    }
+                    self.recalc_equity(ref_price);
+                }
+            }
+            OrderType::Limit => {
+                let price = match price {
+                    Some(p) => p,
+                    None => return,
+                };
+                match side {
+                    mtrade_core::ActionSide::Buy => {
+                        let spend = self.wallet.cash * size_pct;
+                        if spend > 0.0 && price > 0.0 {
+                            let qty = spend / price;
+                            self.wallet.cash -= spend;
+                            self.wallet.open_orders.push(Order {
+                                id: Uuid::new_v4().to_string(),
+                                side,
+                                order_type: OrderType::Limit,
+                                price,
+                                quantity: qty,
+                                created_at: now,
+                            });
+                        }
+                    }
+                    mtrade_core::ActionSide::Sell => {
+                        let qty = self.wallet.position_qty * size_pct;
+                        if qty > 0.0 {
+                            self.wallet.position_qty -= qty;
+                            self.wallet.open_orders.push(Order {
+                                id: Uuid::new_v4().to_string(),
+                                side,
+                                order_type: OrderType::Limit,
+                                price,
+                                quantity: qty,
+                                created_at: now,
+                            });
+                        }
+                    }
+                    mtrade_core::ActionSide::Hold => {}
+                }
+                if let Some(p) = last_price {
+                    self.recalc_equity(p);
+                }
+            }
+        }
+    }
+
+    fn recalc_equity(&mut self, mark_price: f64) {
+        let position_value = self.wallet.position_qty * mark_price;
+        self.wallet.equity = self.wallet.cash + position_value;
+        // max_drawdown 简化：不变或按初始现金计算
     }
 }
 

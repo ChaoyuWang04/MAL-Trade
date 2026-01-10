@@ -22,7 +22,9 @@ use backtester::{run_backtest, BacktestConfig};
 use feature_engine::{compute_features, IndicatorConfig};
 use live_trader::SessionManager;
 use mtrade_core::DataSource;
-use mtrade_core::{AccountState, Action, ActionSide, BacktestResult, FeatureBar, FeatureFrame};
+use mtrade_core::{
+    AccountState, Action, ActionSide, BacktestResult, FeatureBar, FeatureFrame, Order, OrderType,
+};
 use storage::{DataPaths, ParquetDataSource};
 
 #[derive(Clone)]
@@ -253,6 +255,7 @@ struct StateResponse {
     mode: String,
     candle: Option<FeatureBar>,
     wallet: AccountState,
+    open_orders: Vec<Order>,
 }
 
 async fn session_state(
@@ -272,11 +275,15 @@ async fn session_state(
         .sessions
         .with_session(id, |session| {
             let candle = executor::block_on(session.source.next_candle());
+            if let Some(ref c) = candle {
+                session.check_fills(c);
+            }
             Ok(StateResponse {
                 session_id: id.to_string(),
                 mode: format!("{:?}", session.source.mode()),
                 candle,
                 wallet: session.wallet.clone(),
+                open_orders: session.wallet.open_orders.clone(),
             })
         })
         .await;
@@ -295,12 +302,17 @@ async fn session_state(
 struct ActionRequest {
     action: String,
     size_pct: f64,
+    #[serde(default)]
+    r#type: Option<String>,
+    price: Option<f64>,
+    order_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 struct ActionResponse {
     session_id: String,
     wallet: AccountState,
+    open_orders: Vec<Order>,
 }
 
 async fn apply_action(
@@ -326,37 +338,34 @@ async fn apply_action(
                 _ => ActionSide::Hold,
             };
             let latest = executor::block_on(session.source.next_candle());
-            if let Some(candle) = latest {
-                match side {
-                    ActionSide::Buy => {
-                        let spend = session.wallet.cash * req.size_pct;
-                        if spend > 0.0 {
-                            let qty = spend / candle.bar.close;
-                            session.wallet.cash -= spend;
-                            session.wallet.position_qty += qty;
-                            session.wallet.position_avg_price = candle.bar.close;
-                        }
-                    }
-                    ActionSide::Sell => {
-                        let qty = session.wallet.position_qty * req.size_pct;
-                        if qty > 0.0 {
-                            let proceeds = qty * candle.bar.close;
-                            session.wallet.cash += proceeds;
-                            session.wallet.position_qty -= qty;
-                            if session.wallet.position_qty <= f64::EPSILON {
-                                session.wallet.position_avg_price = 0.0;
-                                session.wallet.position_qty = 0.0;
-                            }
-                        }
-                    }
-                    ActionSide::Hold => {}
-                }
-                let position_value = session.wallet.position_qty * candle.bar.close;
-                session.wallet.equity = session.wallet.cash + position_value;
+            if let Some(ref candle) = latest {
+                session.check_fills(candle);
             }
+            let ot = match req
+                .r#type
+                .clone()
+                .unwrap_or_else(|| "MARKET".to_string())
+                .to_uppercase()
+                .as_str()
+            {
+                "LIMIT" => OrderType::Limit,
+                _ => OrderType::Market,
+            };
+            if ot == OrderType::Limit && req.price.is_none() && req.order_id.is_none() {
+                return Err(anyhow::anyhow!("price required for limit order"));
+            }
+            session.apply_action(
+                side,
+                req.size_pct,
+                ot,
+                req.price,
+                req.order_id.as_deref(),
+                latest.as_ref().map(|c| c.bar.close),
+            );
             Ok(ActionResponse {
                 session_id: id.to_string(),
                 wallet: session.wallet.clone(),
+                open_orders: session.wallet.open_orders.clone(),
             })
         })
         .await;

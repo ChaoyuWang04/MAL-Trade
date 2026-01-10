@@ -1,0 +1,71 @@
+import { useEffect, useRef } from "react";
+import { createChart, ColorType, LineStyle, ISeriesApi, CandlestickData } from "lightweight-charts";
+import type { Candle, OpenOrder } from "@/store";
+
+type Props = {
+  candles: Candle[];
+  openOrders: OpenOrder[];
+};
+
+export function ActiveOrdersChart({ candles, openOrders }: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const priceLinesRef = useRef<{ id: string; line: any }[]>([]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const chart = createChart(containerRef.current, {
+      layout: { background: { type: ColorType.Solid, color: "#0f172a" }, textColor: "#cbd5e1" },
+      grid: { vertLines: { color: "#1f2937" }, horzLines: { color: "#1f2937" } },
+      width: containerRef.current.clientWidth,
+      height: 380,
+      timeScale: { timeVisible: true, secondsVisible: false, borderColor: "#1f2937" },
+      rightPriceScale: { borderColor: "#1f2937" },
+    });
+    const series = chart.addCandlestickSeries({
+      upColor: "#22c55e",
+      downColor: "#ef4444",
+      borderVisible: false,
+      wickUpColor: "#22c55e",
+      wickDownColor: "#ef4444",
+    });
+    chartRef.current = chart;
+    seriesRef.current = series;
+    const resize = () => chart.resize(containerRef.current!.clientWidth, 380);
+    window.addEventListener("resize", resize);
+    return () => {
+      window.removeEventListener("resize", resize);
+      priceLinesRef.current.forEach((p) => p.line && series.removePriceLine(p.line));
+      chart.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series) return;
+    const data: CandlestickData[] = candles.map((c, idx) => ({
+      time: idx,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+    series.setData(data);
+
+    priceLinesRef.current.forEach((p) => p.line && series.removePriceLine(p.line));
+    priceLinesRef.current = [];
+    openOrders.forEach((o) => {
+      const line = series.createPriceLine({
+        price: o.price,
+        color: o.side === "BUY" ? "#22c55e" : "#ef4444",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        title: `${o.side} ${o.price}`,
+      });
+      priceLinesRef.current.push({ id: o.id, line });
+    });
+  }, [candles, openOrders]);
+
+  return <div ref={containerRef} className="w-full" />;
+}
