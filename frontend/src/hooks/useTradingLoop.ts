@@ -36,6 +36,7 @@ type LlmContext = {
     close: number;
     volume: number;
   }>;
+  data_window?: { start: string; end: string };
 };
 
 async function mockLLM(systemPrompt: string, state: GymState): Promise<LlmDecision> {
@@ -71,6 +72,13 @@ export function useTradingLoop() {
         close: c.bar.close,
         volume: c.bar.volume,
       })),
+    data_window:
+      state.candles && state.candles.length
+        ? {
+            start: state.candles[0].bar.open_time,
+            end: state.candles[state.candles.length - 1].bar.close_time,
+          }
+        : undefined,
   });
 
   useEffect(() => {

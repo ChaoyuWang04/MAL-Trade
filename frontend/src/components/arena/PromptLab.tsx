@@ -44,6 +44,9 @@ export function PromptLab() {
         close: c.close,
         volume: c.volume,
       })),
+      data_window: bars.length
+        ? { start: bars[0].open_time, end: bars[bars.length - 1].close_time }
+        : undefined,
     };
   };
 
@@ -120,7 +123,7 @@ export function PromptLab() {
           <button
             onClick={() =>
               setDraft(
-                `You are DeepSeek-V3 acting as an autonomous trader.\n- Always respond with strict JSON only.\n- Choose an action even under uncertainty (LIMIT BUY/SELL with price + size_pct, optional stop_loss/take_profit; or CANCEL with order_id; or HOLD).\n- size_pct must be <= 0.2.\n- Use provided recent_bars (200), wallet, open_orders to justify decisions; do not say \"insufficient data\".\n- Schema:\n{"action":"LIMIT","side":"BUY|SELL","size_pct":0.1,"price":12345,"stop_loss":12000,"take_profit":13000}\n{"action":"CANCEL","order_id":"..."}\n{"action":"HOLD"}`
+                `You are DeepSeek-V3 acting as an autonomous trader already plugged into a backtest/live engine. You MUST output valid JSON only.\n- Use provided recent_bars (200), wallet, open_orders, data_window to infer context; data_window is the trading period. Do NOT say "insufficient data".\n- Always pick an action: LIMIT BUY/SELL with size_pct<=0.2 and price; include stop_loss/take_profit when possible; or CANCEL with order_id; or HOLD.\n- Schema examples:\n{"action":"LIMIT","side":"BUY","size_pct":0.1,"price":43000,"stop_loss":42000,"take_profit":44000}\n{"action":"CANCEL","order_id":"..."}\n{"action":"HOLD"}`
               )
             }
             className="rounded-lg border border-amber-500 px-3 py-1 text-sm text-amber-200 hover:border-amber-400"
