@@ -23,6 +23,8 @@ type LlmDecision = {
   note?: string;
 };
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
+
 async function mockLLM(systemPrompt: string, state: GymState): Promise<LlmDecision> {
   const price = state.candle?.bar?.close || 0;
   return {
@@ -48,7 +50,7 @@ export function useTradingLoop() {
       if (stopped || !session) return;
       try {
         // Step A: fetch state
-        const state: GymState = await fetch(`/state/${session.id}`).then((r) => r.json());
+        const state: GymState = await fetch(`${API_BASE}/state/${session.id}`).then((r) => r.json());
         const price = state.candle?.bar?.close;
         if (price) {
           setMarket({ price, wallet: state.wallet, candles: state.candle ? [state.candle] : [] });
@@ -123,7 +125,7 @@ export function useTradingLoop() {
           if (decision.action === "CANCEL" && decision.order_id) {
             body.order_id = decision.order_id;
           }
-          await fetch(`/action/${session.id}`, {
+          await fetch(`${API_BASE}/action/${session.id}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
