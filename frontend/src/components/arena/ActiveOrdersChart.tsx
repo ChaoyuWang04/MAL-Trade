@@ -45,7 +45,7 @@ export function ActiveOrdersChart({ candles, openOrders }: Props) {
     const series = seriesRef.current;
     if (!series) return;
     const data: CandlestickData[] = candles.map((c, idx) => ({
-      time: idx,
+      time: Math.floor(new Date(c.close_time || c.open_time).getTime() / 1000),
       open: c.open,
       high: c.high,
       low: c.low,
