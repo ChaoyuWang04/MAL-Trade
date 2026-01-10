@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -47,24 +48,36 @@ impl MarketSource for BacktestSource {
 pub struct LiveSource {
     latest: Arc<RwLock<Option<FeatureBar>>>,
     backlog: Arc<Mutex<VecDeque<FeatureBar>>>,
+    backlog_len: Arc<AtomicUsize>,
 }
 
 impl LiveSource {
     pub fn new(symbol: &str, seed: Option<FeatureBar>, history: Vec<FeatureBar>) -> Self {
         let latest = Arc::new(RwLock::new(None));
+        let backlog_len = Arc::new(AtomicUsize::new(history.len()));
         let backlog = Arc::new(Mutex::new(VecDeque::from(history)));
         if let Some(fb) = seed {
             let mut lock = futures::executor::block_on(latest.write());
             *lock = Some(fb);
         }
-        Self::spawn_ws_or_poll(symbol.to_string(), latest.clone(), backlog.clone());
-        Self { latest, backlog }
+        Self::spawn_ws_or_poll(
+            symbol.to_string(),
+            latest.clone(),
+            backlog.clone(),
+            backlog_len.clone(),
+        );
+        Self {
+            latest,
+            backlog,
+            backlog_len,
+        }
     }
 
     fn spawn_ws_or_poll(
         symbol: String,
         latest: Arc<RwLock<Option<FeatureBar>>>,
         backlog: Arc<Mutex<VecDeque<FeatureBar>>>,
+        backlog_len: Arc<AtomicUsize>,
     ) {
         tokio::spawn(async move {
             let stream_name = format!("{}@kline_1m", symbol.to_lowercase());
@@ -162,6 +175,8 @@ impl LiveSource {
                                                         lock.pop_back();
                                                     }
                                                     lock.push_back(fb.clone());
+                                                    backlog_len
+                                                        .store(lock.len(), Ordering::Relaxed);
                                                 }
                                                 {
                                                     let mut lock = latest.write().await;
@@ -201,6 +216,7 @@ impl MarketSource for LiveSource {
         {
             let mut lock = self.backlog.lock().await;
             if let Some(front) = lock.pop_front() {
+                self.backlog_len.fetch_sub(1, Ordering::Relaxed);
                 return Some(front);
             }
         }
@@ -210,6 +226,10 @@ impl MarketSource for LiveSource {
 
     fn mode(&self) -> MarketMode {
         MarketMode::Live
+    }
+
+    fn backlog_len(&self) -> Option<usize> {
+        Some(self.backlog_len.load(Ordering::Relaxed))
     }
 }
 

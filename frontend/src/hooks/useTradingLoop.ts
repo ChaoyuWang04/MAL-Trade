@@ -11,6 +11,7 @@ type GymState = {
     quantity: number;
     created_at: number;
   }>;
+  backlog_remaining?: number;
 };
 
 type LlmDecision = {
@@ -55,6 +56,7 @@ export function useTradingLoop() {
           throw new Error(`state fetch failed (${resp.status})`);
         }
         const state: GymState = await resp.json();
+        const backlogRemaining = state.backlog_remaining ?? 0;
         if (!state.candle) {
           appendLog({
             time: new Date().toISOString(),
@@ -69,7 +71,7 @@ export function useTradingLoop() {
             running.current = false;
             return;
           }
-          scheduleNext(session.mode);
+          scheduleNext(session.mode, backlogRemaining);
           return;
         }
         const price = state.candle?.bar?.close;
@@ -77,14 +79,14 @@ export function useTradingLoop() {
           const bar = state.candle.bar as any;
           const candleKey = `${bar.open_time}-${bar.close_time}`;
           if (candleKey === lastCandleKey.current) {
-            scheduleNext(session.mode);
+            scheduleNext(session.mode, backlogRemaining);
             return;
           }
           lastCandleKey.current = candleKey;
-          if (session.mode === "live") {
+          if (session.mode === "live" && backlogRemaining === 0) {
             const now = Date.now();
             if (now - lastLiveUpdate.current < 1000) {
-              scheduleNext(session.mode);
+              scheduleNext(session.mode, backlogRemaining);
               return;
             }
             lastLiveUpdate.current = now;
@@ -192,11 +194,11 @@ export function useTradingLoop() {
           type: "error",
         });
       }
-      scheduleNext(session.mode);
+      scheduleNext(session.mode, 0);
     };
 
-    const scheduleNext = (mode: string) => {
-      const delay = mode === "live" ? 1000 : 0;
+    const scheduleNext = (mode: string, backlogRemaining: number) => {
+      const delay = mode === "live" && backlogRemaining === 0 ? 1000 : 0;
       setTimeout(tick, delay);
     };
 

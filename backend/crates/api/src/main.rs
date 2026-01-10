@@ -288,6 +288,7 @@ struct StateResponse {
     candle: Option<FeatureBar>,
     wallet: AccountState,
     open_orders: Vec<Order>,
+    backlog_remaining: Option<usize>,
 }
 
 async fn session_state(
@@ -316,6 +317,7 @@ async fn session_state(
                 candle,
                 wallet: session.wallet.clone(),
                 open_orders: session.wallet.open_orders.clone(),
+                backlog_remaining: session.source.backlog_len(),
             })
         })
         .await;

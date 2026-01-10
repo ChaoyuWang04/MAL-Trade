@@ -12,4 +12,7 @@ pub enum MarketMode {
 pub trait MarketSource: Send + Sync {
     async fn next_candle(&mut self) -> Option<FeatureBar>;
     fn mode(&self) -> MarketMode;
+    fn backlog_len(&self) -> Option<usize> {
+        None
+    }
 }
