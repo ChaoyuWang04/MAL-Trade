@@ -14,7 +14,7 @@
 - `POST /session` → create a session
   - Body: `{ "mode": "backtest" | "live", "symbol"?: "BTCUSDT", "initial_cash"?: 10000, "start_ms"?: int, "end_ms"?: int, "window"?: int }`
   - Backtest: if `start_ms`/`end_ms` provided, uses that slice; otherwise pulls the latest `window` bars (default 500) from Parquet.
-  - Live connects to Binance WS (`@kline_1m`) and streams latest candle.
+  - Live: preloads the latest `window` bars from local Parquet (default 500) before streaming WS ticks, so the chart isn’t empty at start.
   - Response: `{ "session_id": "<uuid>", "mode": "Backtest"|"Live" }`
 - `GET /state/:session_id` → advance/read state
   - For backtest: returns next candle in the sequence.

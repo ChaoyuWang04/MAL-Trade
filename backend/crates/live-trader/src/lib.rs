@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -46,20 +46,26 @@ impl MarketSource for BacktestSource {
 
 pub struct LiveSource {
     latest: Arc<RwLock<Option<FeatureBar>>>,
+    backlog: Arc<Mutex<VecDeque<FeatureBar>>>,
 }
 
 impl LiveSource {
-    pub fn new(symbol: &str, seed: Option<FeatureBar>) -> Self {
+    pub fn new(symbol: &str, seed: Option<FeatureBar>, history: Vec<FeatureBar>) -> Self {
         let latest = Arc::new(RwLock::new(None));
+        let backlog = Arc::new(Mutex::new(VecDeque::from(history)));
         if let Some(fb) = seed {
             let mut lock = futures::executor::block_on(latest.write());
             *lock = Some(fb);
         }
-        Self::spawn_ws_or_poll(symbol.to_string(), latest.clone());
-        Self { latest }
+        Self::spawn_ws_or_poll(symbol.to_string(), latest.clone(), backlog.clone());
+        Self { latest, backlog }
     }
 
-    fn spawn_ws_or_poll(symbol: String, latest: Arc<RwLock<Option<FeatureBar>>>) {
+    fn spawn_ws_or_poll(
+        symbol: String,
+        latest: Arc<RwLock<Option<FeatureBar>>>,
+        backlog: Arc<Mutex<VecDeque<FeatureBar>>>,
+    ) {
         tokio::spawn(async move {
             let stream_name = format!("{}@kline_1m", symbol.to_lowercase());
             let url = format!("wss://data-stream.binance.vision/ws/{stream_name}");
@@ -142,8 +148,25 @@ impl LiveSource {
                                                     rsi: None,
                                                     cmf: None,
                                                 };
-                                                let mut lock = latest.write().await;
-                                                *lock = Some(fb);
+                                                {
+                                                    let mut lock = backlog.lock().await;
+                                                    // avoid duplicates by open_time
+                                                    if lock
+                                                        .back()
+                                                        .map(|p| {
+                                                            p.bar.open_time == fb.bar.open_time
+                                                        })
+                                                        .unwrap_or(false)
+                                                    {
+                                                        // replace last
+                                                        lock.pop_back();
+                                                    }
+                                                    lock.push_back(fb.clone());
+                                                }
+                                                {
+                                                    let mut lock = latest.write().await;
+                                                    *lock = Some(fb);
+                                                }
                                                 info!(price=%close, "Received WebSocket Tick");
                                             }
                                         }
@@ -175,6 +198,12 @@ impl LiveSource {
 #[async_trait]
 impl MarketSource for LiveSource {
     async fn next_candle(&mut self) -> Option<FeatureBar> {
+        {
+            let mut lock = self.backlog.lock().await;
+            if let Some(front) = lock.pop_front() {
+                return Some(front);
+            }
+        }
         let guard = self.latest.read().await;
         guard.clone()
     }
@@ -430,13 +459,18 @@ impl SessionManager {
         &self,
         initial_cash: f64,
         symbol: &str,
+        history: Vec<FeatureBar>,
         seed: Option<FeatureBar>,
     ) -> Result<Uuid> {
         let mut map = self.inner.lock().await;
         let id = Uuid::new_v4();
         map.insert(
             id,
-            Session::new(id, Box::new(LiveSource::new(symbol, seed)), initial_cash),
+            Session::new(
+                id,
+                Box::new(LiveSource::new(symbol, seed, history)),
+                initial_cash,
+            ),
         );
         Ok(id)
     }

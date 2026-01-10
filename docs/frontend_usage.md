@@ -34,6 +34,7 @@ Visit `http://localhost:3000`.
 - The page auto-creates and attaches a backtest session (stored in `localStorage`); you can switch mode/symbol and click **New Session** to refresh.
 - Optional: provide a custom time range, then click **Use Custom Range** to recreate the session over that slice.
 - Custom range inputs are treated as UTC; current data window hint shows 2024-01-01T00:00Z — 2025-01-01T00:00Z.
+- Live mode preloads the latest 500 bars from local Parquet before streaming ticks, so charts are populated immediately.
 - The chart will show prices; orders count shows open limit orders.
 - Click **Full View** for expanded chart + logs.
 

@@ -27,6 +27,7 @@ use mtrade_core::{
 };
 use storage::{DataPaths, ParquetDataSource};
 use tower_http::cors::CorsLayer;
+use tracing::warn;
 
 #[derive(Clone)]
 struct AppState {
@@ -236,11 +237,13 @@ async fn create_session(
             }
         }
         SessionMode::Live => {
+            let preload = preload_history(&state.data_root, &req.symbol, req.window);
             state
                 .sessions
                 .create_live(
                     req.initial_cash,
                     &req.symbol,
+                    preload,
                     seed_latest(&state.data_root, &req.symbol),
                 )
                 .await
@@ -261,6 +264,20 @@ async fn create_session(
             Json(serde_json::json!({ "error": err.to_string() })),
         )
             .into_response(),
+    }
+}
+
+fn preload_history(data_root: &Path, symbol: &str, window: usize) -> Vec<FeatureBar> {
+    let paths = DataPaths::new(data_root, symbol);
+    let source = ParquetDataSource::new(paths);
+    match source.latest_window(window) {
+        Ok(bars) => compute_features(symbol.to_string(), &bars, IndicatorConfig::default())
+            .map(|f| f.rows)
+            .unwrap_or_default(),
+        Err(err) => {
+            warn!(?err, "live preload failed, continuing without history");
+            Vec::new()
+        }
     }
 }
 

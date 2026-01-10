@@ -64,6 +64,9 @@ export default function ArenaPage() {
       } else {
         payload.window = 500;
       }
+      if (mode === "live") {
+        payload.window = 500; // preload recent history for live
+      }
       const resp = await fetch(`${API_BASE}/session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
