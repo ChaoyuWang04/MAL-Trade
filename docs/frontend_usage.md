@@ -19,6 +19,10 @@
   DEEPSEEK_API_KEY=sk-...your key...
   # optional: override backend API base (defaults to http://localhost:3001)
   NEXT_PUBLIC_API_BASE=http://localhost:3001
+  # Paseo (Asset Hub) native PAS trading
+  PASEO_RPC_URL=https://testnet-passet-hub-eth-rpc.polkadot.io
+  PASEO_PRIVATE_KEY= # your Paseo testnet private key (do not commit)
+  PASEO_EXCHANGE_WALLET=0x000000000000000000000000000000000000dEaD # replace with your target wallet
   ```
 
 ## 2) Frontend setup
@@ -59,7 +63,21 @@ Visit `http://localhost:3000`.
 - LIMIT orders require `price` (and optional `stop_loss/take_profit`); CANCEL requires `order_id`.
 - Actions sent to backend `/action/:id` with proper fields.
 
-## 6) Troubleshooting
+## 6) On-chain PAS trades (Paseo Asset Hub)
+- API route: `POST /api/trade`
+  - Body: `{ "action": "BUY" | "SELL", "amount"?: number (default 0.01), "to"?: "0x..." }`
+  - Uses native PAS (no ERC20). RPC defaults to `https://testnet-passet-hub-eth-rpc.polkadot.io` unless `PASEO_RPC_URL` is set.
+  - Env required: `PASEO_PRIVATE_KEY`; optional override target via `PASEO_EXCHANGE_WALLET` (fallback burn address).
+  - Response: `{ "txHash": "...", "explorerUrl": "https://blockscout-passet-hub.parity-testnet.parity.io/tx/<hash>" }`
+- Example call:
+  ```ts
+  import { executeOnChainTrade } from "@/lib/trade";
+
+  const { txHash, explorerUrl } = await executeOnChainTrade({ action: "BUY", amount: 0.01 });
+  console.log(txHash, explorerUrl);
+  ```
+
+## 7) Troubleshooting
 - If chart shows nothing: ensure session_id is valid and backend running.
 - The Stream panel now logs session attach results and state fetch issues; check it for errors.
 - If LLM errors: check `DEEPSEEK_API_KEY`, and ensure the LLM returns valid JSON.
