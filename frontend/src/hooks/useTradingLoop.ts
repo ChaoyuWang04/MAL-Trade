@@ -67,6 +67,7 @@ export function useTradingLoop() {
   const lastCandleKey = useRef<string | null>(null);
   const MAX_SIZE_PCT = 0.2;
   const RECENT_BARS = 200;
+  const MAX_CANDLES_STORE = 2000;
   const buildContext = (state: GymState): LlmContext => ({
     price: state.candle?.bar?.close ?? null,
     wallet: state.wallet,
@@ -149,7 +150,7 @@ export function useTradingLoop() {
             volume: bar.volume,
           };
           setMarket((prev) => {
-            const candles = [...(prev.candles || []), nextCandle].slice(-500);
+            const candles = [...(prev.candles || []), nextCandle].slice(-MAX_CANDLES_STORE);
             return { price: bar.close, wallet: state.wallet, candles };
           });
         }
