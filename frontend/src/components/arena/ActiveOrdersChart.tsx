@@ -1,14 +1,15 @@
 import { useEffect, useRef } from "react";
-import { createChart, ColorType, LineStyle, ISeriesApi, CandlestickData } from "lightweight-charts";
-import type { Candle, OpenOrder } from "@/store";
+import { createChart, ColorType, LineStyle, ISeriesApi, CandlestickData, SeriesMarker } from "lightweight-charts";
+import type { Candle, OpenOrder, LlmTrade } from "@/store";
 
 type Props = {
   candles: Candle[];
   openOrders: OpenOrder[];
   equity?: number;
+  trades?: LlmTrade[];
 };
 
-export function ActiveOrdersChart({ candles, openOrders, equity }: Props) {
+export function ActiveOrdersChart({ candles, openOrders, equity, trades }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -83,7 +84,24 @@ export function ActiveOrdersChart({ candles, openOrders, equity }: Props) {
       });
       priceLinesRef.current.push({ id: o.id, line });
     });
-  }, [candles, openOrders]);
+
+    if (trades && trades.length) {
+      const markers: SeriesMarker<"Candlestick">[] = trades
+        .map((t) => {
+          const ts = parseTs(t.time);
+          if (!Number.isFinite(ts) || !t.price) return null;
+          return {
+            time: ts,
+            position: "aboveBar",
+            color: t.action === "SELL" ? "#ef4444" : "#22c55e",
+            shape: t.action === "SELL" ? "arrowDown" : "arrowUp",
+            text: t.action === "SELL" ? "Sell" : "Buy",
+          } as SeriesMarker<"Candlestick">;
+        })
+        .filter((m): m is SeriesMarker<"Candlestick"> => m !== null);
+      series.setMarkers(markers);
+    }
+  }, [candles, openOrders, trades]);
 
   return (
     <div className="relative w-full">

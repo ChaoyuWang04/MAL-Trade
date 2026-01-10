@@ -267,6 +267,7 @@ export default function ArenaPage() {
                 candles={market.candles || []}
                 openOrders={activeOrders}
                 equity={market.wallet?.equity}
+                trades={useStore.getState().llmTrades}
               />
             </div>
           </div>

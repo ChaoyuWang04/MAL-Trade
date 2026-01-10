@@ -80,7 +80,7 @@ export const useStore = create<StoreState>((set) => ({
     apiKey: undefined,
     isAutoTrading: false,
   },
-  llmThought: undefined,
+  llmThought: typeof window !== "undefined" ? localStorage.getItem("llm_thought") ?? undefined : undefined,
   llmTrades: [],
   logs: [],
   setSession: (session) =>
@@ -104,7 +104,13 @@ export const useStore = create<StoreState>((set) => ({
     }),
   setOpenOrders: (orders) => set({ openOrders: orders }),
   setLlmConfig: (cfg) => set((s) => ({ llmConfig: { ...s.llmConfig, ...cfg } })),
-  setLlmThought: (thought) => set({ llmThought: thought }),
+  setLlmThought: (thought) => {
+    if (typeof window !== "undefined") {
+      if (thought) localStorage.setItem("llm_thought", thought);
+      else localStorage.removeItem("llm_thought");
+    }
+    set({ llmThought: thought });
+  },
   recordLlmTrade: (trade) =>
     set((s) => ({
       llmTrades: [...s.llmTrades.slice(-49), trade],
