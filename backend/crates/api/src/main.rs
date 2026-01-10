@@ -5,7 +5,7 @@ use std::time::Duration;
 use anyhow::Result;
 use axum::{
     extract::{Path as AxumPath, State},
-    http::StatusCode,
+    http::{header, HeaderValue, Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
@@ -26,6 +26,7 @@ use mtrade_core::{
     AccountState, Action, ActionSide, BacktestResult, FeatureBar, FeatureFrame, Order, OrderType,
 };
 use storage::{DataPaths, ParquetDataSource};
+use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
 struct AppState {
@@ -101,7 +102,13 @@ async fn main() -> Result<()> {
         .route("/session", post(create_session))
         .route("/state/:id", get(session_state))
         .route("/action/:id", post(apply_action))
-        .with_state(app_state);
+        .with_state(app_state)
+        .layer(
+            CorsLayer::new()
+                .allow_origin([HeaderValue::from_static("http://localhost:3000")])
+                .allow_methods([Method::GET, Method::POST])
+                .allow_headers([header::CONTENT_TYPE]),
+        );
 
     let addr: SocketAddr = "0.0.0.0:3001".parse().expect("bind address");
     info!(%addr, "API starting");

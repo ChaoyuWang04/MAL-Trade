@@ -17,6 +17,8 @@
 - Frontend env: `frontend/.env.local`
   ```
   DEEPSEEK_API_KEY=sk-...your key...
+  # optional: override backend API base (defaults to http://localhost:3001)
+  NEXT_PUBLIC_API_BASE=http://localhost:3001
   ```
 
 ## 2) Frontend setup

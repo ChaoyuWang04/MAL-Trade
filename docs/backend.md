@@ -69,3 +69,6 @@ curl -X POST http://localhost:3001/action/<SESSION_ID_FROM_STEP_1> \
 cd backend
 cargo run -p api
 ```
+
+### CORS / Origins
+- Browser calls are allowed from `http://localhost:3000` (Next.js dev). If you serve the frontend from another origin, update the API CORS allowlist accordingly.
