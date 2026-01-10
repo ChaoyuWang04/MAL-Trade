@@ -155,5 +155,14 @@ export function useTradingLoop() {
       stopped = true;
       running.current = false;
     };
-  }, [session, llmConfig.isAutoTrading, llmConfig.systemPrompt, openOrders, setMarket, setOpenOrders, appendLog]);
+  }, [
+    session,
+    llmConfig.isAutoTrading,
+    llmConfig.systemPrompt,
+    llmConfig.model,
+    openOrders,
+    setMarket,
+    setOpenOrders,
+    appendLog,
+  ]);
 }

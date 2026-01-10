@@ -1,4 +1,5 @@
 import "@/app/globals.css";
+import { ExtensionErrorSilencer } from "@/components/ExtensionErrorSilencer";
 
 export const metadata = {
   title: "MAL Trade Arena",
@@ -12,7 +13,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ExtensionErrorSilencer />
+        {children}
+      </body>
     </html>
   );
 }
