@@ -50,6 +50,7 @@ Visit `http://localhost:3000`.
 
 ## 6) Troubleshooting
 - If chart shows nothing: ensure session_id is valid and backend running.
+- The Stream panel now logs session attach results and state fetch issues; check it for errors.
 - If LLM errors: check `DEEPSEEK_API_KEY`, and ensure the LLM returns valid JSON.
 - Hydration errors can occur if server/client text mismatch; titles are now fixed to "Prompt Lab".
 - Browser extensions (e.g., Talisman) may inject errors; the app now silences known Talisman init errors, but disabling the extension is recommended if issues persist.

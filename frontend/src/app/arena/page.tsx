@@ -73,6 +73,11 @@ export default function ArenaPage() {
       setSession(next);
       persistSession(next);
       setStatus("Attached");
+      appendLog({
+        time: new Date().toISOString(),
+        thought: `Session attached: ${next.id}`,
+        type: "info",
+      });
       return next;
     } catch (err: any) {
       const msg = err?.message || "Failed to attach session";
@@ -131,12 +136,17 @@ export default function ArenaPage() {
       setSession(next);
       persistSession(next);
       setStatus("Attached");
+      appendLog({
+        time: new Date().toISOString(),
+        thought: `Session attached: ${sessionId}`,
+        type: "info",
+      });
     } else {
       setAttachError("Session not found or expired, creating new one instead.");
       await createAndAttachSession();
     }
     setIsAttaching(false);
-  }, [createAndAttachSession, mode, persistSession, sessionId, setSession, validateSession]);
+  }, [appendLog, createAndAttachSession, mode, persistSession, sessionId, setSession, validateSession]);
 
   const activeOrders = openOrders as OpenOrder[];
 

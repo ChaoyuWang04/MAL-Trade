@@ -48,10 +48,20 @@ export function useTradingLoop() {
       if (stopped || !session) return;
       try {
         // Step A: fetch state
-        const state: GymState = await fetch(`${API_BASE}/state/${session.id}`).then((r) => r.json());
+        const resp = await fetch(`${API_BASE}/state/${session.id}`);
+        if (!resp.ok) {
+          throw new Error(`state fetch failed (${resp.status})`);
+        }
+        const state: GymState = await resp.json();
         const price = state.candle?.bar?.close;
         if (price) {
           setMarket({ price, wallet: state.wallet, candles: state.candle ? [state.candle] : [] });
+        } else {
+          appendLog({
+            time: new Date().toISOString(),
+            thought: "state missing candle, waiting for next tick",
+            type: "info",
+          });
         }
         if (state.open_orders) {
           setOpenOrders(
