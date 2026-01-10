@@ -35,9 +35,10 @@ Visit `http://localhost:3000`.
 - Optional: provide a custom time range, then click **Use Custom Range** to recreate the session over that slice.
 - Custom range inputs are treated as UTC; current data window hint shows 2024-01-01T00:00Z — 2025-01-01T00:00Z.
 - Live mode preloads the latest 500 bars from local Parquet before streaming ticks, so charts are populated immediately.
-- LLM auto-trading sends the last 200 bars, wallet, and open orders to `/api/llm`; decisions are expected as JSON with LIMIT/CANCEL/HOLD (size_pct capped at 0.2).
+- LLM auto-trading sends the last 200 bars, wallet, open orders, and data_window to `/api/llm`; decisions are expected as JSON with LIMIT/CANCEL/HOLD (size_pct capped at 0.2).
 - Prompt Lab now has **Think Once** to let the LLM reason without trading (uses your prompt/model/key and shows the raw response).
 - LLM outputs are shown in the right sidebar (LLM Insight); no popups.
+- LLM Trades panel shows recent actions (time/price/size/equity). Manual commands: **Stop** (turn off Auto) and **Buy 10%** (market buy size_pct 0.1).
 
 ## 4) Lab mode
 - Visit `/lab` for a dedicated prompt playground with context (price/equity/open orders/last bar) and read-only chart.

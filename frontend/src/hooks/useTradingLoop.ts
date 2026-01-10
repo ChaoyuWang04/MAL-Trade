@@ -52,7 +52,16 @@ async function mockLLM(systemPrompt: string, state: GymState): Promise<LlmDecisi
 }
 
 export function useTradingLoop() {
-  const { session, llmConfig, setMarket, setOpenOrders, appendLog, openOrders, setLlmThought } = useStore();
+  const {
+    session,
+    llmConfig,
+    setMarket,
+    setOpenOrders,
+    appendLog,
+    openOrders,
+    setLlmThought,
+    recordLlmTrade,
+  } = useStore();
   const running = useRef(false);
   const lastLiveUpdate = useRef<number>(0);
   const lastCandleKey = useRef<string | null>(null);
@@ -236,6 +245,15 @@ export function useTradingLoop() {
             action: decision.action,
             type: "trade",
           });
+          recordLlmTrade({
+            time: new Date().toISOString(),
+            action: decision.action,
+            side: decision.action === "CANCEL" ? undefined : decision.action,
+            price: decision.price,
+            size_pct: decision.size_pct,
+            equity: state.wallet?.equity,
+            note: decision.note,
+          });
         }
       } catch (err: any) {
         appendLog({
@@ -268,5 +286,6 @@ export function useTradingLoop() {
     setOpenOrders,
     appendLog,
     setLlmThought,
+    recordLlmTrade,
   ]);
 }

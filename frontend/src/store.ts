@@ -40,6 +40,15 @@ export type LogLine = {
 };
 
 type Session = { id: string; mode: Mode };
+export type LlmTrade = {
+  time: string;
+  action: string;
+  side?: string;
+  price?: number;
+  size_pct?: number;
+  equity?: number;
+  note?: string;
+};
 
 export type StoreState = {
   session?: Session;
@@ -47,6 +56,7 @@ export type StoreState = {
   openOrders: OpenOrder[];
   llmConfig: { systemPrompt: string; model: string; apiKey?: string; isAutoTrading: boolean };
   llmThought?: string;
+  llmTrades: LlmTrade[];
   logs: LogLine[];
 
   setSession: (session?: Session) => void;
@@ -56,6 +66,7 @@ export type StoreState = {
   setOpenOrders: (orders: OpenOrder[]) => void;
   setLlmConfig: (cfg: Partial<StoreState["llmConfig"]>) => void;
   setLlmThought: (thought?: string) => void;
+  recordLlmTrade: (trade: LlmTrade) => void;
   appendLog: (line: LogLine) => void;
 };
 
@@ -70,6 +81,7 @@ export const useStore = create<StoreState>((set) => ({
     isAutoTrading: false,
   },
   llmThought: undefined,
+  llmTrades: [],
   logs: [],
   setSession: (session) =>
     set((s) => {
@@ -93,6 +105,10 @@ export const useStore = create<StoreState>((set) => ({
   setOpenOrders: (orders) => set({ openOrders: orders }),
   setLlmConfig: (cfg) => set((s) => ({ llmConfig: { ...s.llmConfig, ...cfg } })),
   setLlmThought: (thought) => set({ llmThought: thought }),
+  recordLlmTrade: (trade) =>
+    set((s) => ({
+      llmTrades: [...s.llmTrades.slice(-49), trade],
+    })),
   appendLog: (line) =>
     set((s) => ({
       logs: [...s.logs.slice(-99), line],

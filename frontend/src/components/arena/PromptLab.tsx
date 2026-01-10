@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useStore } from "@/store";
+import { useStore, API_BASE } from "@/store";
 import { ToggleLeft, ToggleRight } from "lucide-react";
 
 const chips = ["{{price}}", "{{rsi}}", "{{open_orders}}"];
@@ -14,6 +14,7 @@ export function PromptLab() {
   const [thinkError, setThinkError] = useState<string | null>(null);
   const setLlmThought = useStore((s) => s.setLlmThought);
   const appendLog = useStore((s) => s.appendLog);
+  const session = useStore((s) => s.session);
   const RECENT_BARS = 200;
 
   useEffect(() => {
@@ -157,6 +158,43 @@ export function PromptLab() {
           className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-100"
           placeholder="sk-..."
         />
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-xs font-semibold text-slate-400">Manual Commands</div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setLlmConfig({ isAutoTrading: false })}
+            className="rounded-lg border border-slate-700 px-3 py-1 text-xs hover:border-red-400"
+          >
+            Stop
+          </button>
+          <button
+            onClick={async () => {
+              if (!session) {
+                setThinkError("No session attached");
+                return;
+              }
+              try {
+                await fetch(`${API_BASE}/action/${session.id}`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "BUY", size_pct: 0.1 }),
+                });
+                appendLog({
+                  time: new Date().toISOString(),
+                  thought: "Manual BUY 10% sent",
+                  type: "trade",
+                });
+              } catch (e: any) {
+                setThinkError(e?.message || "Manual buy failed");
+              }
+            }}
+            className="rounded-lg border border-emerald-500 px-3 py-1 text-xs text-emerald-200 hover:border-emerald-400"
+          >
+            Buy 10%
+          </button>
+        </div>
       </div>
     </div>
   );

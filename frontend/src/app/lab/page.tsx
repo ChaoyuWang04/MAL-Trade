@@ -7,6 +7,7 @@ import { LogStream } from "@/components/arena/LogStream";
 import { ActiveOrdersChart } from "@/components/arena/ActiveOrdersChart";
 import { useTradingLoop } from "@/hooks/useTradingLoop";
 import { useStore } from "@/store";
+import { LlmTradesPanel } from "@/components/arena/LlmTradesPanel";
 
 export default function LabPage() {
   const { market, openOrders } = useStore();
@@ -43,6 +44,7 @@ export default function LabPage() {
         </div>
         <div className="h-full">
           <LlmInsight />
+          <LlmTradesPanel />
           <LogStream />
         </div>
       </div>

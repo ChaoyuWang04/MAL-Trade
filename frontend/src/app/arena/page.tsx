@@ -7,6 +7,7 @@ import { PromptLab } from "@/components/arena/PromptLab";
 import { ActiveOrdersChart } from "@/components/arena/ActiveOrdersChart";
 import { LogStream } from "@/components/arena/LogStream";
 import { LlmInsight } from "@/components/arena/LlmInsight";
+import { LlmTradesPanel } from "@/components/arena/LlmTradesPanel";
 import { BadgeDollarSign, ListOrdered } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/store";
@@ -273,6 +274,7 @@ export default function ArenaPage() {
         {/* Right Sidebar */}
         <div className="h-full">
           <LlmInsight />
+          <LlmTradesPanel />
           <LogStream />
         </div>
       </div>
