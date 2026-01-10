@@ -8,6 +8,8 @@ export function PromptLab() {
   const { llmConfig, setLlmConfig } = useStore();
   const [draft, setDraft] = useState(llmConfig.systemPrompt);
   const [apiKey, setApiKey] = useState(llmConfig.apiKey ?? "");
+  const [thinking, setThinking] = useState(false);
+  const [thinkError, setThinkError] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("llm_api_key");
@@ -21,6 +23,30 @@ export function PromptLab() {
   const applyApiKey = () => {
     setLlmConfig({ apiKey });
     localStorage.setItem("llm_api_key", apiKey);
+  };
+
+  const handleThink = async () => {
+    setThinking(true);
+    setThinkError(null);
+    try {
+      const resp = await fetch("/api/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: draft,
+          user: "Think about the current market context and propose an action JSON. (Manual think mode)",
+          model: llmConfig.model || "deepseek-chat",
+          apiKey: apiKey || llmConfig.apiKey,
+        }),
+      });
+      const { content, error } = await resp.json();
+      if (error) throw new Error(error);
+      alert(content || "No content");
+    } catch (e: any) {
+      setThinkError(e?.message || "LLM think failed");
+    } finally {
+      setThinking(false);
+    }
   };
 
   return (
@@ -57,7 +83,15 @@ export function PromptLab() {
           <button className="rounded-lg bg-emerald-500 px-3 py-1 text-sm font-semibold text-slate-900" onClick={applyPrompt}>
             Apply Prompt
           </button>
+          <button
+            onClick={handleThink}
+            disabled={thinking}
+            className="rounded-lg border border-slate-700 px-3 py-1 text-sm hover:border-emerald-500 disabled:opacity-50"
+          >
+            Think Once
+          </button>
         </div>
+        {thinkError && <div className="text-xs text-red-400">{thinkError}</div>}
       </div>
 
       <div className="space-y-2">

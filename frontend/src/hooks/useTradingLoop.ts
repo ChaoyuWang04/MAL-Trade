@@ -57,6 +57,21 @@ export function useTradingLoop() {
   const lastCandleKey = useRef<string | null>(null);
   const MAX_SIZE_PCT = 0.2;
   const RECENT_BARS = 200;
+  const buildContext = (state: GymState): LlmContext => ({
+    price: state.candle?.bar?.close ?? null,
+    wallet: state.wallet,
+    open_orders: state.open_orders,
+    recent_bars: (state.candles || [])
+      .slice(-RECENT_BARS)
+      .map((c) => ({
+        time: c.bar.close_time,
+        open: c.bar.open,
+        high: c.bar.high,
+        low: c.bar.low,
+        close: c.bar.close,
+        volume: c.bar.volume,
+      })),
+  });
 
   useEffect(() => {
     if (!session || running.current) return;
@@ -140,21 +155,7 @@ export function useTradingLoop() {
             "{{open_orders}}",
             JSON.stringify(openOrders ?? [])
           );
-          const context: LlmContext = {
-            price: state.candle?.bar?.close ?? null,
-            wallet: state.wallet,
-            open_orders: state.open_orders,
-            recent_bars: (state.candles || [])
-              .slice(-RECENT_BARS)
-              .map((c) => ({
-                time: c.bar.close_time,
-                open: c.bar.open,
-                high: c.bar.high,
-                low: c.bar.low,
-                close: c.bar.close,
-                volume: c.bar.volume,
-              })),
-          };
+          const context: LlmContext = buildContext(state);
           try {
             const resp = await fetch("/api/llm", {
               method: "POST",

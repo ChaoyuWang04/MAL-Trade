@@ -12,6 +12,8 @@ export async function POST(req: NextRequest) {
 
   const { system, user, model = "deepseek-chat", temperature = 0.2, apiKey: clientKey } = body || {};
   const apiKey = clientKey || process.env.DEEPSEEK_API_KEY;
+  const allowedModels = ["deepseek-chat", "deepseek-reasoner", "gpt-4o", "gpt-3.5-turbo"];
+  const resolvedModel = allowedModels.includes(model) ? model : "deepseek-chat";
   if (!apiKey) {
     return NextResponse.json({ error: "DEEPSEEK_API_KEY not set" }, { status: 500 });
   }
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model,
+        model: resolvedModel,
         messages,
         temperature,
         stream: false,
