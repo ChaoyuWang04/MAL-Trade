@@ -49,7 +49,9 @@ export type StoreState = {
   logs: LogLine[];
 
   setSession: (session?: Session) => void;
-  setMarket: (update: Partial<StoreState["market"]>) => void;
+  setMarket: (
+    update: Partial<StoreState["market"]> | ((prev: StoreState["market"]) => Partial<StoreState["market"]>)
+  ) => void;
   setOpenOrders: (orders: OpenOrder[]) => void;
   setLlmConfig: (cfg: Partial<StoreState["llmConfig"]>) => void;
   appendLog: (line: LogLine) => void;
@@ -80,7 +82,11 @@ export const useStore = create<StoreState>((set) => ({
           : {}),
       };
     }),
-  setMarket: (update) => set((s) => ({ market: { ...s.market, ...update } })),
+  setMarket: (update) =>
+    set((s) => {
+      const patch = typeof update === "function" ? update(s.market) : update;
+      return { market: { ...s.market, ...patch } };
+    }),
   setOpenOrders: (orders) => set({ openOrders: orders }),
   setLlmConfig: (cfg) => set((s) => ({ llmConfig: { ...s.llmConfig, ...cfg } })),
   appendLog: (line) =>

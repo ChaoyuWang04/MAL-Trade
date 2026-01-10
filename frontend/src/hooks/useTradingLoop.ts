@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useStore, Side, API_BASE } from "../store";
+import { useStore, Side, API_BASE, Candle } from "../store";
 
 type GymState = {
   candle?: { bar: { close: number } & Record<string, any> };
@@ -71,8 +71,21 @@ export function useTradingLoop() {
           return;
         }
         const price = state.candle?.bar?.close;
-        if (price) {
-          setMarket({ price, wallet: state.wallet, candles: [state.candle] });
+        if (price && state.candle?.bar) {
+          const bar = state.candle.bar as any;
+          const nextCandle: Candle = {
+            open_time: bar.open_time,
+            close_time: bar.close_time,
+            open: bar.open,
+            high: bar.high,
+            low: bar.low,
+            close: bar.close,
+            volume: bar.volume,
+          };
+          setMarket((prev) => {
+            const candles = [...(prev.candles || []), nextCandle].slice(-500);
+            return { price, wallet: state.wallet, candles };
+          });
         }
         if (state.open_orders) {
           setOpenOrders(
