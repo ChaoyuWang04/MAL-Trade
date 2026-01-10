@@ -12,6 +12,7 @@ use axum::{
 };
 use chrono::TimeZone;
 use futures::executor;
+use rustls::crypto::CryptoProvider;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -80,6 +81,9 @@ fn default_window() -> usize {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let provider = rustls::crypto::ring::default_provider();
+    let _ = CryptoProvider::install_default(provider);
+
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt().with_env_filter(filter).init();
 

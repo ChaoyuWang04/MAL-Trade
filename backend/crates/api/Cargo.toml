@@ -20,3 +20,4 @@ storage = { path = "../storage" }
 live-trader = { path = "../live-trader" }
 futures.workspace = true
 uuid.workspace = true
+rustls.workspace = true

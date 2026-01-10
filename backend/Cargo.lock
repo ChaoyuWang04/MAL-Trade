@@ -129,6 +129,7 @@ dependencies = [
  "futures",
  "live-trader",
  "llm-agent",
+ "rustls",
  "serde",
  "serde_json",
  "storage",
