@@ -8,6 +8,7 @@ import { ActiveOrdersChart } from "@/components/arena/ActiveOrdersChart";
 import { LogStream } from "@/components/arena/LogStream";
 import { LlmInsight } from "@/components/arena/LlmInsight";
 import { LlmTradesPanel } from "@/components/arena/LlmTradesPanel";
+import { OnChainControls } from "@/components/arena/OnChainControls";
 import { BadgeDollarSign, ListOrdered } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/store";
@@ -260,6 +261,8 @@ export default function ArenaPage() {
               </Link>
             </div>
           </header>
+
+          <OnChainControls />
 
             <div className="rounded-xl bg-slate-900 p-3">
               <div className="mb-2 text-sm font-semibold text-slate-200">Arena</div>

@@ -8,6 +8,7 @@ import { ActiveOrdersChart } from "@/components/arena/ActiveOrdersChart";
 import { useTradingLoop } from "@/hooks/useTradingLoop";
 import { useStore } from "@/store";
 import { LlmTradesPanel } from "@/components/arena/LlmTradesPanel";
+import { OnChainControls } from "@/components/arena/OnChainControls";
 
 export default function LabPage() {
   const { market, openOrders } = useStore();
@@ -22,6 +23,7 @@ export default function LabPage() {
           <PromptLab />
         </div>
         <div className="flex h-full flex-col gap-4">
+          <OnChainControls />
           <div className="rounded-xl bg-slate-900 p-3">
             <div className="mb-2 text-sm font-semibold text-slate-200">Context</div>
             <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">

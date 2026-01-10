@@ -19,6 +19,9 @@
   DEEPSEEK_API_KEY=sk-...your key...
   # optional: override backend API base (defaults to http://localhost:3001)
   NEXT_PUBLIC_API_BASE=http://localhost:3001
+  # Frontend (MetaMask) public config
+  NEXT_PUBLIC_PASEO_RPC_URL=https://testnet-passet-hub-eth-rpc.polkadot.io
+  NEXT_PUBLIC_PASEO_EXCHANGE_WALLET=0x000000000000000000000000000000000000dEaD
   # Paseo (Asset Hub) native PAS trading
   PASEO_RPC_URL=https://testnet-passet-hub-eth-rpc.polkadot.io
   PASEO_PRIVATE_KEY= # your Paseo testnet private key (do not commit)
@@ -63,19 +66,20 @@ Visit `http://localhost:3000`.
 - LIMIT orders require `price` (and optional `stop_loss/take_profit`); CANCEL requires `order_id`.
 - Actions sent to backend `/action/:id` with proper fields.
 
-## 6) On-chain PAS trades (Paseo Asset Hub)
-- API route: `POST /api/trade`
+## 6) On-chain PAS trades (MetaMask + Paseo Asset Hub)
+- Arena/Lab 顶部新增「On-chain PAS」卡片：
+  - 点击 **Connect MetaMask**：自动 `wallet_addEthereumChain` + `wallet_switchEthereumChain` 到 Paseo (chainId `420420422`, RPC `https://testnet-passet-hub-eth-rpc.polkadot.io`, symbol `PAS`)，显示地址/余额。
+  - 按钮 **BUY 0.01 PAS / SELL 0.01 PAS**：通过 MetaMask `eth_sendTransaction` 发送原生 PAS 到 `NEXT_PUBLIC_PASEO_EXCHANGE_WALLET`（默认 burn 地址，请替换为你的接收地址）。
+  - 交易成功后展示 Blockscout 链接；余额不足会提示去 Faucet。
+- Faucet：`https://faucet.polkadot.io/`（领取 PAS 测试币后重试）。
+- 备用后端路由（私钥发送，不建议默认用）：`POST /api/trade`
   - Body: `{ "action": "BUY" | "SELL", "amount"?: number (default 0.01), "to"?: "0x..." }`
-  - Uses native PAS (no ERC20). RPC defaults to `https://testnet-passet-hub-eth-rpc.polkadot.io` unless `PASEO_RPC_URL` is set.
-  - Env required: `PASEO_PRIVATE_KEY`; optional override target via `PASEO_EXCHANGE_WALLET` (fallback burn address).
-  - Response: `{ "txHash": "...", "explorerUrl": "https://blockscout-passet-hub.parity-testnet.parity.io/tx/<hash>" }`
-- Example call:
-  ```ts
-  import { executeOnChainTrade } from "@/lib/trade";
-
-  const { txHash, explorerUrl } = await executeOnChainTrade({ action: "BUY", amount: 0.01 });
-  console.log(txHash, explorerUrl);
-  ```
+  - 使用 `PASEO_PRIVATE_KEY` 和 `PASEO_RPC_URL`，响应含 `txHash` 与 Blockscout 链接。
+  - 示例：
+    ```ts
+    import { executeOnChainTrade } from "@/lib/trade";
+    const { txHash, explorerUrl } = await executeOnChainTrade({ action: "BUY", amount: 0.01 });
+    ```
 
 ## 7) Troubleshooting
 - If chart shows nothing: ensure session_id is valid and backend running.
