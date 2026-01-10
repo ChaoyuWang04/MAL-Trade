@@ -66,7 +66,20 @@ export const useStore = create<StoreState>((set) => ({
     isAutoTrading: false,
   },
   logs: [],
-  setSession: (session) => set({ session }),
+  setSession: (session) =>
+    set((s) => {
+      const isNew = session && s.session?.id !== session.id;
+      return {
+        session,
+        ...(isNew
+          ? {
+              market: { candles: [], wallet: undefined },
+              openOrders: [],
+              logs: [],
+            }
+          : {}),
+      };
+    }),
   setMarket: (update) => set((s) => ({ market: { ...s.market, ...update } })),
   setOpenOrders: (orders) => set({ openOrders: orders }),
   setLlmConfig: (cfg) => set((s) => ({ llmConfig: { ...s.llmConfig, ...cfg } })),

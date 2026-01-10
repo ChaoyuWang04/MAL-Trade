@@ -12,8 +12,8 @@
 - Base: local server listens on `0.0.0.0:3001`.
 - `GET /health` → `{"status":"ok"}`.
 - `POST /session` → create a session
-  - Body: `{ "mode": "backtest" | "live", "symbol"?: "BTCUSDT", "initial_cash"?: 10000, "start_ms"?: int, "end_ms"?: int }`
-  - Backtest requires `start_ms`/`end_ms` (epoch ms within downloaded Parquet).
+  - Body: `{ "mode": "backtest" | "live", "symbol"?: "BTCUSDT", "initial_cash"?: 10000, "start_ms"?: int, "end_ms"?: int, "window"?: int }`
+  - Backtest: if `start_ms`/`end_ms` provided, uses that slice; otherwise pulls the latest `window` bars (default 500) from Parquet.
   - Live connects to Binance WS (`@kline_1m`) and streams latest candle.
   - Response: `{ "session_id": "<uuid>", "mode": "Backtest"|"Live" }`
 - `GET /state/:session_id` → advance/read state

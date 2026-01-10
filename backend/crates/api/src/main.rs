@@ -198,6 +198,8 @@ struct SessionRequest {
     initial_cash: f64,
     start_ms: Option<i64>,
     end_ms: Option<i64>,
+    #[serde(default = "default_window")]
+    window: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -212,20 +214,26 @@ async fn create_session(
 ) -> impl IntoResponse {
     let resp = match req.mode {
         SessionMode::Backtest => {
-            let start_ms = req.start_ms.unwrap_or(0);
-            let end_ms = req.end_ms.unwrap_or(0);
-            if start_ms == 0 || end_ms == 0 {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({"error": "start_ms/end_ms required for backtest"})),
-                )
-                    .into_response();
-            }
             let paths = DataPaths::new(&state.data_root, &req.symbol);
-            state
-                .sessions
-                .create_backtest(&req.symbol, paths, start_ms, end_ms, req.initial_cash)
-                .await
+            match (req.start_ms, req.end_ms) {
+                (Some(start_ms), Some(end_ms)) if start_ms > 0 && end_ms > 0 => {
+                    state
+                        .sessions
+                        .create_backtest(&req.symbol, paths, start_ms, end_ms, req.initial_cash)
+                        .await
+                }
+                _ => {
+                    state
+                        .sessions
+                        .create_backtest_latest(
+                            &req.symbol,
+                            paths,
+                            req.window.max(1),
+                            req.initial_cash,
+                        )
+                        .await
+                }
+            }
         }
         SessionMode::Live => {
             state

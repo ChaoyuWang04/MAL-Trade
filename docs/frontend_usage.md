@@ -31,8 +31,8 @@ Visit `http://localhost:3000`.
 
 ## 3) How to attach a session
 - Open `/arena`.
-- Input the `session_id` from the backend response.
-- Select mode (`backtest` or `live`), then click **Attach Session**.
+- The page auto-creates and attaches a backtest session (stored in `localStorage`); you can switch mode/symbol and click **New Session** to refresh.
+- Optional: provide a custom time range, then click **Use Custom Range** to recreate the session over that slice.
 - The chart will show prices; orders count shows open limit orders.
 - Click **Full View** for expanded chart + logs.
 

@@ -403,6 +403,29 @@ impl SessionManager {
         Ok(id)
     }
 
+    pub async fn create_backtest_latest(
+        &self,
+        symbol: &str,
+        data_paths: DataPaths,
+        window: usize,
+        initial_cash: f64,
+    ) -> Result<Uuid> {
+        let source = ParquetDataSource::new(data_paths);
+        let bars = source.latest_window(window)?;
+        if bars.is_empty() {
+            return Err(anyhow::anyhow!("no data found for latest window"));
+        }
+        let frame = compute_features(symbol.to_string(), &bars, IndicatorConfig::default())?;
+        let fb = frame.rows;
+        let mut map = self.inner.lock().await;
+        let id = Uuid::new_v4();
+        map.insert(
+            id,
+            Session::new(id, Box::new(BacktestSource::new(fb)), initial_cash),
+        );
+        Ok(id)
+    }
+
     pub async fn create_live(
         &self,
         initial_cash: f64,
