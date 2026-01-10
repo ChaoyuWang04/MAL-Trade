@@ -95,3 +95,4 @@ cargo run -p api
 - 数据不会随仓库上传，需自行运行 data-ingest。
 - 实时模式依赖 Binance WebSocket；若网络受限需开启代理/TUN。
 - 回测模式只要 Parquet 在本地即可运行，不依赖网络。
+- 若启动时报 `no parquet files found...`，先用 data-ingest 下载 Parquet 后再创建 session。

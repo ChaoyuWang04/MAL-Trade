@@ -168,6 +168,29 @@ impl DataSource for ParquetDataSource {
 
     fn latest_window(&self, n: usize) -> Result<Vec<Bar>, DataSourceError> {
         let glob = self.parquet_glob();
+        let parquet_dir = self.paths.parquet_dir();
+        let mut has_parquet = false;
+        if let Ok(entries) = fs::read_dir(&parquet_dir) {
+            for entry in entries.flatten() {
+                if entry
+                    .path()
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| ext.eq_ignore_ascii_case("parquet"))
+                    .unwrap_or(false)
+                {
+                    has_parquet = true;
+                    break;
+                }
+            }
+        }
+        if !has_parquet {
+            return Err(DataSourceError::Other(format!(
+                "no parquet files found in {}",
+                parquet_dir.display()
+            )));
+        }
+
         let lf = LazyFrame::scan_parquet(&glob, ScanArgsParquet::default())
             .map_err(|e| DataSourceError::Other(e.to_string()))?
             .sort(
