@@ -88,14 +88,15 @@ export function ActiveOrdersChart({ candles, openOrders, equity, trades }: Props
     if (trades && trades.length) {
       const markers: SeriesMarker<"Candlestick">[] = trades
         .map((t) => {
-          const ts = parseTs(t.time);
+          const ts = parseTs(t.candle_time || t.time);
           if (!Number.isFinite(ts) || !t.price) return null;
+          const isSell = (t.action || "").toUpperCase() === "SELL";
           return {
             time: ts,
             position: "aboveBar",
-            color: t.action === "SELL" ? "#ef4444" : "#22c55e",
-            shape: t.action === "SELL" ? "arrowDown" : "arrowUp",
-            text: t.action === "SELL" ? "Sell" : "Buy",
+            color: isSell ? "#ef4444" : "#22c55e",
+            shape: isSell ? "arrowDown" : "arrowUp",
+            text: isSell ? "Sell" : "Buy",
           } as SeriesMarker<"Candlestick">;
         })
         .filter((m): m is SeriesMarker<"Candlestick"> => m !== null);

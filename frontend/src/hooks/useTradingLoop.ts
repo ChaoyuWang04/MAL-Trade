@@ -247,6 +247,7 @@ export function useTradingLoop() {
           });
           recordLlmTrade({
             time: new Date().toISOString(),
+            candle_time: state.candle?.bar?.close_time,
             action: decision.action,
             side: decision.action === "CANCEL" ? undefined : decision.action,
             price: decision.price,

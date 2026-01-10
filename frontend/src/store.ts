@@ -42,6 +42,7 @@ export type LogLine = {
 type Session = { id: string; mode: Mode };
 export type LlmTrade = {
   time: string;
+  candle_time?: string;
   action: string;
   side?: string;
   price?: number;

@@ -39,7 +39,7 @@ export default function LabPage() {
               candles={market.candles || []}
               openOrders={openOrders}
               equity={market.wallet?.equity}
-              trades={useStore.getState().llmTrades}
+              trades={useStore((s) => s.llmTrades)}
             />
           </div>
         </div>

@@ -263,14 +263,14 @@ export default function ArenaPage() {
 
             <div className="rounded-xl bg-slate-900 p-3">
               <div className="mb-2 text-sm font-semibold text-slate-200">Arena</div>
-              <ActiveOrdersChart
-                candles={market.candles || []}
-                openOrders={activeOrders}
-                equity={market.wallet?.equity}
-                trades={useStore.getState().llmTrades}
-              />
-            </div>
+            <ActiveOrdersChart
+              candles={market.candles || []}
+              openOrders={activeOrders}
+              equity={market.wallet?.equity}
+              trades={useStore((s) => s.llmTrades)}
+            />
           </div>
+        </div>
 
         {/* Right Sidebar */}
         <div className="h-full">
