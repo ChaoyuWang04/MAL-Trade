@@ -3,6 +3,7 @@ import { useStore, Side, API_BASE, Candle } from "../store";
 
 type GymState = {
   candle?: { bar: { close: number } & Record<string, any> };
+  candles?: Array<{ bar: { close: number } & Record<string, any> }>;
   wallet?: any;
   open_orders?: Array<{
     id: string;
@@ -51,7 +52,11 @@ export function useTradingLoop() {
       if (stopped || !session) return;
       try {
         // Step A: fetch state
-        const resp = await fetch(`${API_BASE}/state/${session.id}`);
+        const steps =
+          session.mode === "live" && (lastLiveUpdate.current === 0 || lastLiveUpdate.current > 0)
+            ? 50
+            : 1;
+        const resp = await fetch(`${API_BASE}/state/${session.id}?steps=${steps}`);
         if (!resp.ok) {
           throw new Error(`state fetch failed (${resp.status})`);
         }
@@ -74,20 +79,16 @@ export function useTradingLoop() {
           scheduleNext(session.mode, backlogRemaining);
           return;
         }
-        const price = state.candle?.bar?.close;
-        if (price && state.candle?.bar) {
-          const bar = state.candle.bar as any;
+        const bars = state.candles && state.candles.length > 0 ? state.candles : state.candle ? [state.candle] : [];
+        for (const wrapped of bars) {
+          const bar = wrapped.bar as any;
           const candleKey = `${bar.open_time}-${bar.close_time}`;
-          if (candleKey === lastCandleKey.current) {
-            scheduleNext(session.mode, backlogRemaining);
-            return;
-          }
+          if (candleKey === lastCandleKey.current) continue;
           lastCandleKey.current = candleKey;
           if (session.mode === "live" && backlogRemaining === 0) {
             const now = Date.now();
-            if (now - lastLiveUpdate.current < 1000) {
-              scheduleNext(session.mode, backlogRemaining);
-              return;
+            if (now - lastLiveUpdate.current < 200) {
+              continue;
             }
             lastLiveUpdate.current = now;
           }
@@ -102,7 +103,7 @@ export function useTradingLoop() {
           };
           setMarket((prev) => {
             const candles = [...(prev.candles || []), nextCandle].slice(-500);
-            return { price, wallet: state.wallet, candles };
+            return { price: bar.close, wallet: state.wallet, candles };
           });
         }
         if (state.open_orders) {
@@ -132,6 +133,7 @@ export function useTradingLoop() {
                 system: promptInjected,
                 user: JSON.stringify({ price, open_orders: openOrders }),
                 model: llmConfig.model || "deepseek-chat",
+                apiKey: llmConfig.apiKey,
               }),
             });
             const { content, error } = await resp.json();
@@ -212,6 +214,7 @@ export function useTradingLoop() {
     llmConfig.isAutoTrading,
     llmConfig.systemPrompt,
     llmConfig.model,
+    llmConfig.apiKey,
     openOrders,
     setMarket,
     setOpenOrders,

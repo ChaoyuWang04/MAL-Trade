@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use axum::{
-    extract::{Path as AxumPath, State},
+    extract::{Path as AxumPath, Query, State},
     http::{header, HeaderValue, Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -286,6 +286,7 @@ struct StateResponse {
     session_id: String,
     mode: String,
     candle: Option<FeatureBar>,
+    candles: Vec<FeatureBar>,
     wallet: AccountState,
     open_orders: Vec<Order>,
     backlog_remaining: Option<usize>,
@@ -294,6 +295,7 @@ struct StateResponse {
 async fn session_state(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> impl IntoResponse {
     let parsed = Uuid::parse_str(&id);
     if parsed.is_err() {
@@ -304,17 +306,28 @@ async fn session_state(
             .into_response();
     }
     let id = parsed.unwrap();
+    let steps = params
+        .get("steps")
+        .and_then(|v| v.parse::<usize>().ok())
+        .map(|v| v.min(100).max(1))
+        .unwrap_or(1);
     let resp = state
         .sessions
         .with_session(id, |session| {
-            let candle = executor::block_on(session.source.next_candle());
-            if let Some(ref c) = candle {
-                session.check_fills(c);
+            let mut candles = Vec::new();
+            for _ in 0..steps {
+                if let Some(c) = executor::block_on(session.source.next_candle()) {
+                    session.check_fills(&c);
+                    candles.push(c);
+                } else {
+                    break;
+                }
             }
             Ok(StateResponse {
                 session_id: id.to_string(),
                 mode: format!("{:?}", session.source.mode()),
-                candle,
+                candle: candles.last().cloned(),
+                candles,
                 wallet: session.wallet.clone(),
                 open_orders: session.wallet.open_orders.clone(),
                 backlog_remaining: session.source.backlog_len(),

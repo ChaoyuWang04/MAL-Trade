@@ -3,10 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 const API_URL = "https://api.deepseek.com/chat/completions";
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "DEEPSEEK_API_KEY not set on server" }, { status: 500 });
-  }
   let body: any;
   try {
     body = await req.json();
@@ -14,7 +10,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { system, user, model = "deepseek-chat", temperature = 0.2 } = body || {};
+  const { system, user, model = "deepseek-chat", temperature = 0.2, apiKey: clientKey } = body || {};
+  const apiKey = clientKey || process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "DEEPSEEK_API_KEY not set" }, { status: 500 });
+  }
   if (!user) {
     return NextResponse.json({ error: "user message required" }, { status: 400 });
   }
