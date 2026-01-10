@@ -24,6 +24,19 @@ type LlmDecision = {
   order_id?: string;
   note?: string;
 };
+type LlmContext = {
+  price: number | null;
+  wallet: any;
+  open_orders: GymState["open_orders"];
+  recent_bars: Array<{
+    time: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  }>;
+};
 
 async function mockLLM(systemPrompt: string, state: GymState): Promise<LlmDecision> {
   const price = state.candle?.bar?.close || 0;
@@ -42,6 +55,8 @@ export function useTradingLoop() {
   const running = useRef(false);
   const lastLiveUpdate = useRef<number>(0);
   const lastCandleKey = useRef<string | null>(null);
+  const MAX_SIZE_PCT = 0.2;
+  const RECENT_BARS = 200;
 
   useEffect(() => {
     if (!session || running.current) return;
@@ -125,13 +140,28 @@ export function useTradingLoop() {
             "{{open_orders}}",
             JSON.stringify(openOrders ?? [])
           );
+          const context: LlmContext = {
+            price: state.candle?.bar?.close ?? null,
+            wallet: state.wallet,
+            open_orders: state.open_orders,
+            recent_bars: (state.candles || [])
+              .slice(-RECENT_BARS)
+              .map((c) => ({
+                time: c.bar.close_time,
+                open: c.bar.open,
+                high: c.bar.high,
+                low: c.bar.low,
+                close: c.bar.close,
+                volume: c.bar.volume,
+              })),
+          };
           try {
             const resp = await fetch("/api/llm", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 system: promptInjected,
-                user: JSON.stringify({ price, open_orders: openOrders }),
+                user: JSON.stringify(context),
                 model: llmConfig.model || "deepseek-chat",
                 apiKey: llmConfig.apiKey,
               }),
@@ -152,9 +182,17 @@ export function useTradingLoop() {
 
         // Step C: act
         if (decision.action && decision.action !== "HOLD") {
+          if (decision.size_pct && decision.size_pct > MAX_SIZE_PCT) {
+            decision.size_pct = MAX_SIZE_PCT;
+            appendLog({
+              time: new Date().toISOString(),
+              thought: `size_pct capped at ${MAX_SIZE_PCT}`,
+              type: "info",
+            });
+          }
           // basic validation for limit/stop
           if (decision.action === "LIMIT") {
-            if (!decision.price || !decision.stop_loss || decision.size_pct === undefined) {
+            if (!decision.price || decision.size_pct === undefined) {
               appendLog({
                 time: new Date().toISOString(),
                 thought: "invalid limit payload",

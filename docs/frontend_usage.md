@@ -35,6 +35,7 @@ Visit `http://localhost:3000`.
 - Optional: provide a custom time range, then click **Use Custom Range** to recreate the session over that slice.
 - Custom range inputs are treated as UTC; current data window hint shows 2024-01-01T00:00Z — 2025-01-01T00:00Z.
 - Live mode preloads the latest 500 bars from local Parquet before streaming ticks, so charts are populated immediately.
+- LLM auto-trading sends the last 200 bars, wallet, and open orders to `/api/llm`; decisions are expected as JSON with LIMIT/CANCEL/HOLD (size_pct capped at 0.2).
 - The chart will show prices; orders count shows open limit orders.
 - Click **Full View** for expanded chart + logs.
 
