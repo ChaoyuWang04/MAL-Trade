@@ -6,12 +6,15 @@ const chips = ["{{price}}", "{{rsi}}", "{{open_orders}}"];
 
 export function PromptLab() {
   const { llmConfig, setLlmConfig } = useStore();
+  const market = useStore((s) => s.market);
+  const openOrders = useStore((s) => s.openOrders);
   const [draft, setDraft] = useState(llmConfig.systemPrompt);
   const [apiKey, setApiKey] = useState(llmConfig.apiKey ?? "");
   const [thinking, setThinking] = useState(false);
   const [thinkError, setThinkError] = useState<string | null>(null);
   const setLlmThought = useStore((s) => s.setLlmThought);
   const appendLog = useStore((s) => s.appendLog);
+  const RECENT_BARS = 200;
 
   useEffect(() => {
     const saved = localStorage.getItem("llm_api_key");
@@ -27,6 +30,23 @@ export function PromptLab() {
     localStorage.setItem("llm_api_key", apiKey);
   };
 
+  const buildContext = () => {
+    const bars = market.candles || [];
+    return {
+      price: bars[bars.length - 1]?.close ?? null,
+      wallet: market.wallet,
+      open_orders: openOrders,
+      recent_bars: bars.slice(-RECENT_BARS).map((c) => ({
+        time: c.close_time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        volume: c.volume,
+      })),
+    };
+  };
+
   const handleThink = async () => {
     setThinking(true);
     setThinkError(null);
@@ -36,7 +56,7 @@ export function PromptLab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           system: draft,
-          user: "Think about the current market context and propose an action JSON. (Manual think mode)",
+          user: JSON.stringify(buildContext()),
           model: llmConfig.model || "deepseek-chat",
           apiKey: apiKey || llmConfig.apiKey,
         }),
@@ -96,6 +116,16 @@ export function PromptLab() {
             className="rounded-lg border border-slate-700 px-3 py-1 text-sm hover:border-emerald-500 disabled:opacity-50"
           >
             Think Once
+          </button>
+          <button
+            onClick={() =>
+              setDraft(
+                `You are DeepSeek-V3 acting as an autonomous trader.\n- Always respond with strict JSON only.\n- Choose an action even under uncertainty (LIMIT BUY/SELL with price + size_pct, optional stop_loss/take_profit; or CANCEL with order_id; or HOLD).\n- size_pct must be <= 0.2.\n- Use provided recent_bars (200), wallet, open_orders to justify decisions; do not say \"insufficient data\".\n- Schema:\n{"action":"LIMIT","side":"BUY|SELL","size_pct":0.1,"price":12345,"stop_loss":12000,"take_profit":13000}\n{"action":"CANCEL","order_id":"..."}\n{"action":"HOLD"}`
+              )
+            }
+            className="rounded-lg border border-amber-500 px-3 py-1 text-sm text-amber-200 hover:border-amber-400"
+          >
+            DeepSeek V3 Prompt
           </button>
         </div>
         {thinkError && <div className="text-xs text-red-400">{thinkError}</div>}

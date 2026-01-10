@@ -5,9 +5,10 @@ import type { Candle, OpenOrder } from "@/store";
 type Props = {
   candles: Candle[];
   openOrders: OpenOrder[];
+  equity?: number;
 };
 
-export function ActiveOrdersChart({ candles, openOrders }: Props) {
+export function ActiveOrdersChart({ candles, openOrders, equity }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -84,5 +85,14 @@ export function ActiveOrdersChart({ candles, openOrders }: Props) {
     });
   }, [candles, openOrders]);
 
-  return <div ref={containerRef} className="w-full" />;
+  return (
+    <div className="relative w-full">
+      <div ref={containerRef} className="w-full" />
+      {equity !== undefined && (
+        <div className="pointer-events-none absolute left-3 top-2 rounded bg-slate-800/80 px-2 py-1 text-xs text-slate-200">
+          Equity: ${equity.toFixed(2)}
+        </div>
+      )}
+    </div>
+  );
 }

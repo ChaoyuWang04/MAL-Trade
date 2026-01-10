@@ -260,14 +260,15 @@ export default function ArenaPage() {
             </div>
           </header>
 
-          <div className="rounded-xl bg-slate-900 p-3">
-            <div className="mb-2 text-sm font-semibold text-slate-200">Arena</div>
-            <ActiveOrdersChart
-              candles={market.candles || []}
-              openOrders={activeOrders}
-            />
+            <div className="rounded-xl bg-slate-900 p-3">
+              <div className="mb-2 text-sm font-semibold text-slate-200">Arena</div>
+              <ActiveOrdersChart
+                candles={market.candles || []}
+                openOrders={activeOrders}
+                equity={market.wallet?.equity}
+              />
+            </div>
           </div>
-        </div>
 
         {/* Right Sidebar */}
         <div className="h-full">
