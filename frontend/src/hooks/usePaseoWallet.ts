@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BrowserProvider, isAddress, parseEther } from "ethers";
+import { useStore } from "@/store";
 
 const PASEO_CHAIN_ID_DEC = 420420422;
 const PASEO_CHAIN_ID_HEX = "0x190F1B46";
@@ -22,6 +23,7 @@ type WalletState = {
 
 export function usePaseoWallet() {
   const [state, setState] = useState<WalletState>({ isCorrectNetwork: false, error: null });
+  const setOnChain = useStore((s) => s.setOnChain);
 
   const ethereum = useMemo(() => {
     if (typeof window === "undefined") return null;
@@ -86,25 +88,28 @@ export function usePaseoWallet() {
       if (!addr) throw new Error("未获取到账户");
       const provider = new BrowserProvider(ethereum);
       const network = await provider.getNetwork();
+      const chainIdNum = Number(network.chainId);
       setState({
         address: addr,
-        chainId: Number(network.chainId),
-        isCorrectNetwork: Number(network.chainId) === PASEO_CHAIN_ID_DEC,
+        chainId: chainIdNum,
+        isCorrectNetwork: chainIdNum === PASEO_CHAIN_ID_DEC,
         balance: undefined,
         lastTxHash: undefined,
         lastExplorerUrl: undefined,
         status: "已连接",
         error: null,
       });
+      setOnChain({ wallet: addr });
       refreshBalance(addr);
     } catch (err: any) {
       setState((s) => ({ ...s, error: err?.message || "连接失败", status: undefined }));
     }
-  }, [ensureNetwork, ethereum, refreshBalance]);
+  }, [ensureNetwork, ethereum, refreshBalance, setOnChain]);
 
   const disconnect = useCallback(() => {
     setState({ isCorrectNetwork: false, error: null });
-  }, []);
+    setOnChain({ wallet: undefined, autoSendLlm: false });
+  }, [setOnChain]);
 
   const sendPasTx = useCallback(
     async ({
@@ -151,10 +156,12 @@ export function usePaseoWallet() {
     const handleAccounts = (accounts: string[]) => {
       if (!accounts || accounts.length === 0) {
         setState({ isCorrectNetwork: false, error: null });
+        setOnChain({ wallet: undefined });
         return;
       }
       const addr = accounts[0];
       setState((s) => ({ ...s, address: addr, error: null }));
+      setOnChain({ wallet: addr });
       refreshBalance(addr);
     };
     const handleChain = (chainIdHex: string) => {
@@ -167,7 +174,7 @@ export function usePaseoWallet() {
       ethereum.removeListener?.("accountsChanged", handleAccounts);
       ethereum.removeListener?.("chainChanged", handleChain);
     };
-  }, [ethereum, refreshBalance]);
+  }, [ethereum, refreshBalance, setOnChain]);
 
   return {
     ...state,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { usePaseoWallet } from "@/hooks/usePaseoWallet";
 import { useStore } from "@/store";
+import { sendPasTxViaMetamask } from "@/lib/paseoTx";
 
 function truncate(addr?: string) {
   if (!addr) return "";
@@ -10,6 +11,8 @@ function truncate(addr?: string) {
 export function OnChainControls() {
   const wallet = usePaseoWallet();
   const appendLog = useStore((s) => s.appendLog);
+  const onChain = useStore((s) => s.onChain);
+  const setOnChain = useStore((s) => s.setOnChain);
   const [pending, setPending] = useState<"BUY" | "SELL" | null>(null);
 
   const handleTrade = async (action: "BUY" | "SELL") => {
@@ -19,6 +22,44 @@ export function OnChainControls() {
       appendLog({
         time: new Date().toISOString(),
         thought: `${action} on-chain sent: ${res.hash}`,
+        type: "trade",
+        action,
+      });
+    } catch (e: any) {
+      appendLog({
+        time: new Date().toISOString(),
+        thought: e?.message || "on-chain trade failed",
+        type: "error",
+      });
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const handleAutoToggle = () => {
+    if (!wallet.isConnected) {
+      appendLog({
+        time: new Date().toISOString(),
+        thought: "请先连接 MetaMask 后再开启自动上链。",
+        type: "error",
+      });
+      return;
+    }
+    setOnChain({ autoSendLlm: !onChain.autoSendLlm });
+  };
+
+  const handleTestSend = async (action: "BUY" | "SELL") => {
+    setPending(action);
+    const to = action === "BUY" ? onChain.destinationBuy : onChain.destinationSell;
+    try {
+      const res = await sendPasTxViaMetamask({
+        to,
+        amount: 0.1,
+        from: wallet.address,
+      });
+      appendLog({
+        time: new Date().toISOString(),
+        thought: `${action} on-chain 0.1 PAS -> ${to} (${res.hash})`,
         type: "trade",
         action,
       });
@@ -59,18 +100,18 @@ export function OnChainControls() {
       </div>
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => handleTrade("BUY")}
+          onClick={() => handleTestSend("BUY")}
           disabled={!wallet.isConnected || pending !== null}
           className="rounded bg-emerald-500 px-3 py-1 text-slate-900 hover:brightness-95 disabled:opacity-50"
         >
-          BUY 0.01 PAS
+          BUY 0.1 PAS
         </button>
         <button
-          onClick={() => handleTrade("SELL")}
+          onClick={() => handleTestSend("SELL")}
           disabled={!wallet.isConnected || pending !== null}
           className="rounded bg-red-500 px-3 py-1 text-slate-900 hover:brightness-95 disabled:opacity-50"
         >
-          SELL 0.01 PAS
+          SELL 0.1 PAS
         </button>
         <a
           href={wallet.faucetUrl}
@@ -80,6 +121,13 @@ export function OnChainControls() {
         >
           领取 PAS Faucet
         </a>
+        <button
+          onClick={handleAutoToggle}
+          disabled={!wallet.isConnected}
+          className={`rounded px-3 py-1 ${onChain.autoSendLlm ? "bg-emerald-600 text-slate-100" : "border border-slate-700 text-slate-200"}`}
+        >
+          LLM 自动上链 {onChain.autoSendLlm ? "开" : "关"}
+        </button>
       </div>
       {wallet.lastExplorerUrl && (
         <div className="text-emerald-300">

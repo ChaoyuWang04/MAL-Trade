@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useStore, Side, API_BASE, Candle } from "../store";
+import { sendPasTxViaMetamask } from "@/lib/paseoTx";
 
 type GymState = {
   candle?: { bar: { close: number } & Record<string, any> };
@@ -61,6 +62,7 @@ export function useTradingLoop() {
     openOrders,
     setLlmThought,
     recordLlmTrade,
+    onChain,
   } = useStore();
   const running = useRef(false);
   const lastLiveUpdate = useRef<number>(0);
@@ -256,6 +258,25 @@ export function useTradingLoop() {
             equity: state.wallet?.equity,
             note: decision.note,
           });
+          if (onChain.autoSendLlm && (decision.action === "BUY" || decision.action === "SELL")) {
+            const to =
+              decision.action === "BUY" ? onChain.destinationBuy : onChain.destinationSell;
+            try {
+              const res = await sendPasTxViaMetamask({ to, amount: 0.1 });
+              appendLog({
+                time: new Date().toISOString(),
+                thought: `LLM ${decision.action} on-chain 0.1 PAS -> ${to} (${res.hash})`,
+                action: decision.action,
+                type: "trade",
+              });
+            } catch (err: any) {
+              appendLog({
+                time: new Date().toISOString(),
+                thought: err?.message || "LLM on-chain trade failed",
+                type: "error",
+              });
+            }
+          }
         }
       } catch (err: any) {
         appendLog({
@@ -289,5 +310,8 @@ export function useTradingLoop() {
     appendLog,
     setLlmThought,
     recordLlmTrade,
+    onChain.autoSendLlm,
+    onChain.destinationBuy,
+    onChain.destinationSell,
   ]);
 }

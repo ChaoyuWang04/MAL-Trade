@@ -59,6 +59,12 @@ export type StoreState = {
   llmThought?: string;
   llmTrades: LlmTrade[];
   logs: LogLine[];
+  onChain: {
+    wallet?: string;
+    autoSendLlm: boolean;
+    destinationBuy: string;
+    destinationSell: string;
+  };
 
   setSession: (session?: Session) => void;
   setMarket: (
@@ -69,6 +75,7 @@ export type StoreState = {
   setLlmThought: (thought?: string) => void;
   recordLlmTrade: (trade: LlmTrade) => void;
   appendLog: (line: LogLine) => void;
+  setOnChain: (update: Partial<StoreState["onChain"]>) => void;
 };
 
 export const useStore = create<StoreState>((set) => ({
@@ -84,6 +91,12 @@ export const useStore = create<StoreState>((set) => ({
   llmThought: typeof window !== "undefined" ? localStorage.getItem("llm_thought") ?? undefined : undefined,
   llmTrades: [],
   logs: [],
+  onChain: {
+    wallet: undefined,
+    autoSendLlm: false,
+    destinationBuy: "0xBC21C6945C08f08fD79561e606578E07A419eCC9",
+    destinationSell: "0xf3b608cE0353136c84d9d3dB6d04fEb9962218Da",
+  },
   setSession: (session) =>
     set((s) => {
       const isNew = session && s.session?.id !== session.id;
@@ -119,6 +132,10 @@ export const useStore = create<StoreState>((set) => ({
   appendLog: (line) =>
     set((s) => ({
       logs: [...s.logs.slice(-99), line],
+    })),
+  setOnChain: (update) =>
+    set((s) => ({
+      onChain: { ...s.onChain, ...update },
     })),
 }));
 

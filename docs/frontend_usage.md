@@ -69,7 +69,8 @@ Visit `http://localhost:3000`.
 ## 6) On-chain PAS trades (MetaMask + Paseo Asset Hub)
 - Arena/Lab 顶部新增「On-chain PAS」卡片：
   - 点击 **Connect MetaMask**：自动 `wallet_addEthereumChain` + `wallet_switchEthereumChain` 到 Paseo (chainId `420420422`, RPC `https://testnet-passet-hub-eth-rpc.polkadot.io`, symbol `PAS`)，显示地址/余额。
-  - 按钮 **BUY 0.01 PAS / SELL 0.01 PAS**：通过 MetaMask `eth_sendTransaction` 发送原生 PAS 到 `NEXT_PUBLIC_PASEO_EXCHANGE_WALLET`（默认 burn 地址，请替换为你的接收地址）。
+  - 按钮 **BUY 0.1 PAS / SELL 0.1 PAS**：通过 MetaMask `eth_sendTransaction` 发送原生 PAS 到硬编码地址（BUY → `0xBC21C6945C08f08fD79561e606578E07A419eCC9`，SELL → `0xf3b608cE0353136c84d9d3dB6d04fEb9962218Da`）。你可在 `.env` 覆盖 `NEXT_PUBLIC_PASEO_EXCHANGE_WALLET` 供手动按钮使用。
+  - 切换 **LLM 自动上链 开/关**：开启后，LLM 的 BUY/SELL 决策会自动各发送 0.1 PAS 到上述硬编码地址（BUY→买入地址，SELL→卖出地址），同时保留纸面下单逻辑。
   - 交易成功后展示 Blockscout 链接；余额不足会提示去 Faucet。
 - Faucet：`https://faucet.polkadot.io/`（领取 PAS 测试币后重试）。
 - 备用后端路由（私钥发送，不建议默认用）：`POST /api/trade`
