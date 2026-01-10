@@ -38,6 +38,8 @@ async function mockLLM(systemPrompt: string, state: GymState): Promise<LlmDecisi
 export function useTradingLoop() {
   const { session, llmConfig, setMarket, setOpenOrders, appendLog, openOrders } = useStore();
   const running = useRef(false);
+  const lastLiveUpdate = useRef<number>(0);
+  const lastCandleKey = useRef<string | null>(null);
 
   useEffect(() => {
     if (!session || running.current) return;
@@ -73,6 +75,20 @@ export function useTradingLoop() {
         const price = state.candle?.bar?.close;
         if (price && state.candle?.bar) {
           const bar = state.candle.bar as any;
+          const candleKey = `${bar.open_time}-${bar.close_time}`;
+          if (candleKey === lastCandleKey.current) {
+            scheduleNext(session.mode);
+            return;
+          }
+          lastCandleKey.current = candleKey;
+          if (session.mode === "live") {
+            const now = Date.now();
+            if (now - lastLiveUpdate.current < 1000) {
+              scheduleNext(session.mode);
+              return;
+            }
+            lastLiveUpdate.current = now;
+          }
           const nextCandle: Candle = {
             open_time: bar.open_time,
             close_time: bar.close_time,

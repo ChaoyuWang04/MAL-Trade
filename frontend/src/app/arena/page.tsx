@@ -15,8 +15,8 @@ export default function ArenaPage() {
   const [sessionId, setSessionId] = useState(session?.id ?? "");
   const [mode, setMode] = useState<Mode>(session?.mode ?? "backtest");
   const [symbol, setSymbol] = useState("BTCUSDT");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [start, setStart] = useState("2024-01-01T00:00");
+  const [end, setEnd] = useState("2024-01-08T00:00");
   const [isAttaching, setIsAttaching] = useState(false);
   const [status, setStatus] = useState<string>("");
   const [attachError, setAttachError] = useState<string | null>(null);
@@ -51,8 +51,13 @@ export default function ArenaPage() {
     setStatus("Creating session...");
     try {
       const payload: any = { mode, symbol: symbol.toUpperCase(), initial_cash: 10000 };
-      const startMs = start ? new Date(start).getTime() : undefined;
-      const endMs = end ? new Date(end).getTime() : undefined;
+      const toUtcMs = (value: string) => {
+        if (!value) return undefined;
+        // datetime-local is local time; append Z to treat as UTC
+        return new Date(`${value}Z`).getTime();
+      };
+      const startMs = toUtcMs(start);
+      const endMs = toUtcMs(end);
       if (startMs && endMs) {
         payload.start_ms = startMs;
         payload.end_ms = endMs;
@@ -212,6 +217,9 @@ export default function ArenaPage() {
                 >
                   Use Custom Range
                 </button>
+              </div>
+              <div className="text-xs text-slate-400">
+                Data window: 2024-01-01T00:00Z — 2025-01-01T00:00Z (UTC). Inputs are treated as UTC.
               </div>
               <div className="flex items-center gap-2">
                 <input
