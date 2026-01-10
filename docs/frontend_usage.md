@@ -72,6 +72,7 @@ Visit `http://localhost:3000`.
   - 按钮 **BUY 0.1 PAS / SELL 0.1 PAS**：通过 MetaMask `eth_sendTransaction` 发送原生 PAS 到硬编码地址（BUY → `0xBC21C6945C08f08fD79561e606578E07A419eCC9`，SELL → `0xf3b608cE0353136c84d9d3dB6d04fEb9962218Da`）。你可在 `.env` 覆盖 `NEXT_PUBLIC_PASEO_EXCHANGE_WALLET` 供手动按钮使用。
   - 切换 **LLM 自动上链 开/关**：开启后，LLM 的 BUY/SELL 决策会自动各发送 0.1 PAS 到上述硬编码地址（BUY→买入地址，SELL→卖出地址），同时保留纸面下单逻辑。
   - 交易成功后展示 Blockscout 链接；余额不足会提示去 Faucet。
+  - LLM 日志会记录请求开始/结束、耗时和当前蜡烛时间，便于排查延迟。
 - Faucet：`https://faucet.polkadot.io/`（领取 PAS 测试币后重试）。
 - 备用后端路由（私钥发送，不建议默认用）：`POST /api/trade`
   - Body: `{ "action": "BUY" | "SELL", "amount"?: number (default 0.01), "to"?: "0x..." }`

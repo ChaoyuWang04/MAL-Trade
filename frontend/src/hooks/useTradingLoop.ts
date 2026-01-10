@@ -177,6 +177,13 @@ export function useTradingLoop() {
           );
           const context: LlmContext = buildContext(state);
           try {
+            const llmStartedAt = performance.now();
+            const candleTime = state.candle?.bar?.close_time || "n/a";
+            appendLog({
+              time: new Date().toISOString(),
+              thought: `LLM request started (candle ${candleTime})`,
+              type: "info",
+            });
             const resp = await fetch("/api/llm", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -189,8 +196,30 @@ export function useTradingLoop() {
             });
             const { content, error } = await resp.json();
             if (error) throw new Error(error);
-            // 期望 LLM 返回 JSON，需解析
-            decision = JSON.parse(content);
+            // 期望 LLM 返回 JSON，需解析并校验
+            const parsed = typeof content === "string" ? JSON.parse(content) : content;
+            if (!parsed || typeof parsed !== "object") {
+              throw new Error("LLM 返回为空");
+            }
+            const normalizedAction = String(parsed.action || "").toUpperCase();
+            if (!["BUY", "SELL", "HOLD", "LIMIT", "CANCEL"].includes(normalizedAction)) {
+              throw new Error(`未知 action: ${parsed.action}`);
+            }
+            decision = {
+              action: normalizedAction as LlmDecision["action"],
+              size_pct: parsed.size_pct,
+              price: parsed.price,
+              stop_loss: parsed.stop_loss,
+              take_profit: parsed.take_profit,
+              order_id: parsed.order_id,
+              note: parsed.note,
+            };
+            const durationMs = Math.round(performance.now() - llmStartedAt);
+            appendLog({
+              time: new Date().toISOString(),
+              thought: `LLM response parsed (${durationMs}ms) action=${decision.action} size=${decision.size_pct ?? "-"} price=${decision.price ?? "-"}`,
+              type: "info",
+            });
             setLlmThought(typeof content === "string" ? content : JSON.stringify(content));
           } catch (e: any) {
             appendLog({
