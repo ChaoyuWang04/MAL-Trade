@@ -10,6 +10,8 @@ export function PromptLab() {
   const [apiKey, setApiKey] = useState(llmConfig.apiKey ?? "");
   const [thinking, setThinking] = useState(false);
   const [thinkError, setThinkError] = useState<string | null>(null);
+  const setLlmThought = useStore((s) => s.setLlmThought);
+  const appendLog = useStore((s) => s.appendLog);
 
   useEffect(() => {
     const saved = localStorage.getItem("llm_api_key");
@@ -41,7 +43,12 @@ export function PromptLab() {
       });
       const { content, error } = await resp.json();
       if (error) throw new Error(error);
-      alert(content || "No content");
+      setLlmThought(content || "No content");
+      appendLog({
+        time: new Date().toISOString(),
+        thought: "LLM think completed",
+        type: "info",
+      });
     } catch (e: any) {
       setThinkError(e?.message || "LLM think failed");
     } finally {

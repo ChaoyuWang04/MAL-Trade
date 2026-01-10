@@ -46,6 +46,7 @@ export type StoreState = {
   market: { price?: number; candles: Candle[]; wallet?: Wallet };
   openOrders: OpenOrder[];
   llmConfig: { systemPrompt: string; model: string; apiKey?: string; isAutoTrading: boolean };
+  llmThought?: string;
   logs: LogLine[];
 
   setSession: (session?: Session) => void;
@@ -54,6 +55,7 @@ export type StoreState = {
   ) => void;
   setOpenOrders: (orders: OpenOrder[]) => void;
   setLlmConfig: (cfg: Partial<StoreState["llmConfig"]>) => void;
+  setLlmThought: (thought?: string) => void;
   appendLog: (line: LogLine) => void;
 };
 
@@ -67,6 +69,7 @@ export const useStore = create<StoreState>((set) => ({
     apiKey: undefined,
     isAutoTrading: false,
   },
+  llmThought: undefined,
   logs: [],
   setSession: (session) =>
     set((s) => {
@@ -89,6 +92,7 @@ export const useStore = create<StoreState>((set) => ({
     }),
   setOpenOrders: (orders) => set({ openOrders: orders }),
   setLlmConfig: (cfg) => set((s) => ({ llmConfig: { ...s.llmConfig, ...cfg } })),
+  setLlmThought: (thought) => set({ llmThought: thought }),
   appendLog: (line) =>
     set((s) => ({
       logs: [...s.logs.slice(-99), line],

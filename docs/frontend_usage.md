@@ -37,6 +37,7 @@ Visit `http://localhost:3000`.
 - Live mode preloads the latest 500 bars from local Parquet before streaming ticks, so charts are populated immediately.
 - LLM auto-trading sends the last 200 bars, wallet, and open orders to `/api/llm`; decisions are expected as JSON with LIMIT/CANCEL/HOLD (size_pct capped at 0.2).
 - Prompt Lab now has **Think Once** to let the LLM reason without trading (uses your prompt/model/key and shows the raw response).
+- LLM outputs are shown in the right sidebar (LLM Insight); no popups.
 - The chart will show prices; orders count shows open limit orders.
 - Click **Full View** for expanded chart + logs.
 

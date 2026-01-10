@@ -6,6 +6,7 @@ import { useTradingLoop } from "@/hooks/useTradingLoop";
 import { PromptLab } from "@/components/arena/PromptLab";
 import { ActiveOrdersChart } from "@/components/arena/ActiveOrdersChart";
 import { LogStream } from "@/components/arena/LogStream";
+import { LlmInsight } from "@/components/arena/LlmInsight";
 import { BadgeDollarSign, ListOrdered } from "lucide-react";
 import Link from "next/link";
 import { API_BASE } from "@/store";
@@ -270,6 +271,7 @@ export default function ArenaPage() {
 
         {/* Right Sidebar */}
         <div className="h-full">
+          <LlmInsight />
           <LogStream />
         </div>
       </div>

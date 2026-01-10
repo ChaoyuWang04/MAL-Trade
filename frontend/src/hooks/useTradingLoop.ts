@@ -51,7 +51,7 @@ async function mockLLM(systemPrompt: string, state: GymState): Promise<LlmDecisi
 }
 
 export function useTradingLoop() {
-  const { session, llmConfig, setMarket, setOpenOrders, appendLog, openOrders } = useStore();
+  const { session, llmConfig, setMarket, setOpenOrders, appendLog, openOrders, setLlmThought } = useStore();
   const running = useRef(false);
   const lastLiveUpdate = useRef<number>(0);
   const lastCandleKey = useRef<string | null>(null);
@@ -171,6 +171,7 @@ export function useTradingLoop() {
             if (error) throw new Error(error);
             // 期望 LLM 返回 JSON，需解析
             decision = JSON.parse(content);
+            setLlmThought(typeof content === "string" ? content : JSON.stringify(content));
           } catch (e: any) {
             appendLog({
               time: new Date().toISOString(),
@@ -258,5 +259,6 @@ export function useTradingLoop() {
     setMarket,
     setOpenOrders,
     appendLog,
+    setLlmThought,
   ]);
 }
