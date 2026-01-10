@@ -17,3 +17,4 @@ uuid.workspace = true
 mtrade_core = { path = "../core", package = "core" }
 storage = { path = "../storage" }
 feature-engine = { path = "../feature-engine" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }

@@ -5,6 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
 use futures::{SinkExt, StreamExt};
+use reqwest::Client;
 use tokio::sync::{Mutex, RwLock};
 use tokio_tungstenite::connect_async;
 use tracing::{info, warn};
@@ -54,14 +55,14 @@ impl LiveSource {
             let mut lock = futures::executor::block_on(latest.write());
             *lock = Some(fb);
         }
-        Self::spawn_ws(symbol.to_string(), latest.clone());
+        Self::spawn_ws_or_poll(symbol.to_string(), latest.clone());
         Self { latest }
     }
 
-    fn spawn_ws(symbol: String, latest: Arc<RwLock<Option<FeatureBar>>>) {
+    fn spawn_ws_or_poll(symbol: String, latest: Arc<RwLock<Option<FeatureBar>>>) {
         tokio::spawn(async move {
             let stream_name = format!("{}@kline_1m", symbol.to_lowercase());
-            let url = format!("wss://stream.binance.com:9443/ws/{stream_name}");
+            let url = format!("wss://data-stream.binance.vision/ws/{stream_name}");
             loop {
                 match connect_async(&url).await {
                     Ok((ws_stream, _)) => {
@@ -159,7 +160,10 @@ impl LiveSource {
                         warn!("ws disconnected, retrying");
                     }
                     Err(err) => {
-                        warn!(?err, "ws connect failed, retry");
+                        warn!(?err, "ws connect failed, fallback to HTTP poll");
+                        if let Err(pe) = poll_once_http(&symbol, &latest).await {
+                            warn!(?pe, "http poll failed");
+                        }
                     }
                 }
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
@@ -259,4 +263,73 @@ impl SessionManager {
             .ok_or_else(|| anyhow::anyhow!("session not found"))?;
         f(session)
     }
+}
+
+async fn poll_once_http(symbol: &str, latest: &Arc<RwLock<Option<FeatureBar>>>) -> Result<()> {
+    let client = Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()?;
+    let url = format!(
+        "https://data-api.binance.vision/api/v3/klines?symbol={}&interval=1m&limit=1",
+        symbol
+    );
+    let resp = client
+        .get(url)
+        .header("User-Agent", "mtrade")
+        .send()
+        .await?;
+    let arr: serde_json::Value = resp.json().await?;
+    if let Some(latest_arr) = arr.as_array().and_then(|a| a.get(0)) {
+        if let Some(close) = latest_arr.get(4).and_then(|v| v.as_str()) {
+            let close_f = close.parse::<f64>().unwrap_or(0.0);
+            let open_time = latest_arr.get(0).and_then(|v| v.as_i64()).unwrap_or(0);
+            let close_time = latest_arr
+                .get(6)
+                .and_then(|v| v.as_i64())
+                .unwrap_or(open_time + 60_000);
+            let bar = mtrade_core::Bar {
+                open_time: Utc
+                    .timestamp_millis_opt(open_time)
+                    .single()
+                    .unwrap_or_else(|| Utc::now()),
+                close_time: Utc
+                    .timestamp_millis_opt(close_time)
+                    .single()
+                    .unwrap_or_else(|| Utc::now()),
+                open: latest_arr
+                    .get(1)
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(close_f),
+                high: latest_arr
+                    .get(2)
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(close_f),
+                low: latest_arr
+                    .get(3)
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(close_f),
+                close: close_f,
+                volume: latest_arr
+                    .get(5)
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0.0),
+                trades: latest_arr.get(8).and_then(|v| v.as_u64()).unwrap_or(0),
+            };
+            let fb = FeatureBar {
+                bar,
+                ema_fast: None,
+                ema_slow: None,
+                rsi: None,
+                cmf: None,
+            };
+            let mut lock = latest.write().await;
+            *lock = Some(fb);
+            info!(price = close_f, "http poll latest price set");
+        }
+    }
+    Ok(())
 }

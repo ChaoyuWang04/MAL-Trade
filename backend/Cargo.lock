@@ -1289,6 +1289,7 @@ dependencies = [
  "core",
  "feature-engine",
  "futures",
+ "reqwest",
  "serde",
  "serde_json",
  "storage",
