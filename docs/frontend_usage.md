@@ -38,6 +38,11 @@ Visit `http://localhost:3000`.
 - LLM auto-trading sends the last 200 bars, wallet, and open orders to `/api/llm`; decisions are expected as JSON with LIMIT/CANCEL/HOLD (size_pct capped at 0.2).
 - Prompt Lab now has **Think Once** to let the LLM reason without trading (uses your prompt/model/key and shows the raw response).
 - LLM outputs are shown in the right sidebar (LLM Insight); no popups.
+
+## 4) Lab mode
+- Visit `/lab` for a dedicated prompt playground with context (price/equity/open orders/last bar) and read-only chart.
+- Use **Think Once** with your API key; outputs appear in the right LLM Insight panel. Auto-trading still runs the same loop if enabled.
+- A preset **DeepSeek V3 Prompt** button injects a jailbreak-style prompt that forces a JSON action.
 - The chart will show prices; orders count shows open limit orders.
 - Click **Full View** for expanded chart + logs.
 
