@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useStore, Side } from "../store";
+import { useStore, Side, API_BASE } from "../store";
 
 type GymState = {
   candle?: { bar: { close: number } & Record<string, any> };
@@ -22,8 +22,6 @@ type LlmDecision = {
   order_id?: string;
   note?: string;
 };
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
 async function mockLLM(systemPrompt: string, state: GymState): Promise<LlmDecision> {
   const price = state.candle?.bar?.close || 0;

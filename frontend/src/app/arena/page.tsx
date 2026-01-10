@@ -8,11 +8,15 @@ import { ActiveOrdersChart } from "@/components/arena/ActiveOrdersChart";
 import { LogStream } from "@/components/arena/LogStream";
 import { BadgeDollarSign, ListOrdered } from "lucide-react";
 import Link from "next/link";
+import { API_BASE } from "@/store";
 
 export default function ArenaPage() {
   const { session, setSession, market, openOrders } = useStore();
   const [sessionId, setSessionId] = useState(session?.id ?? "");
   const [mode, setMode] = useState(session?.mode ?? "backtest");
+  const [symbol, setSymbol] = useState("BTCUSDT");
+  const [start, setStart] = useState("2024-01-01T00:00");
+  const [end, setEnd] = useState("2024-01-01T02:00");
   useTradingLoop();
 
   useEffect(() => {
@@ -56,6 +60,51 @@ export default function ArenaPage() {
               >
                 Attach Session
               </button>
+              <div className="flex items-center gap-2">
+                <input
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                  className="w-28 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
+                  placeholder="Symbol"
+                />
+                <input
+                  type="datetime-local"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
+                />
+                <input
+                  type="datetime-local"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100"
+                />
+                <button
+                  onClick={async () => {
+                    const start_ms = new Date(start).getTime();
+                    const end_ms = new Date(end).getTime();
+                    const resp = await fetch(`${API_BASE}/session`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        mode,
+                        symbol,
+                        initial_cash: 10000,
+                        start_ms,
+                        end_ms,
+                      }),
+                    });
+                    const json = await resp.json();
+                    if (json.session_id) {
+                      setSessionId(json.session_id);
+                      setSession({ id: json.session_id, mode });
+                    }
+                  }}
+                  className="rounded-lg border border-slate-700 px-3 py-1 text-xs hover:border-emerald-500"
+                >
+                  Create Session
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-300">
               <span className="flex items-center gap-1 rounded-lg bg-slate-800 px-2 py-1">
