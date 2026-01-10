@@ -44,13 +44,30 @@ export function ActiveOrdersChart({ candles, openOrders }: Props) {
   useEffect(() => {
     const series = seriesRef.current;
     if (!series) return;
-    const data: CandlestickData[] = candles.map((c, idx) => ({
-      time: Math.floor(new Date(c.close_time || c.open_time).getTime() / 1000),
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
+
+    const parseTs = (value: string | number | undefined) => {
+      if (value === undefined) return NaN;
+      if (typeof value === "number") return value;
+      const ms = Date.parse(value);
+      return Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN;
+    };
+
+    const data: CandlestickData[] = candles
+      .map((c) => {
+        const ts = parseTs(c.close_time || c.open_time);
+        if (!Number.isFinite(ts)) return null;
+        return {
+          time: ts,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        };
+      })
+      .filter((d): d is CandlestickData => d !== null)
+      .sort((a, b) => Number(a.time) - Number(b.time));
+
+    if (data.length === 0) return;
     series.setData(data);
 
     priceLinesRef.current.forEach((p) => p.line && series.removePriceLine(p.line));
