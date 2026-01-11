@@ -83,7 +83,9 @@ export function PromptLab() {
   return (
     <div className="flex h-full flex-col gap-3 rounded-xl bg-slate-900 p-4 text-sm text-slate-100">
       <div className="flex items-center justify-between">
-        <span className="text-base font-semibold">Prompt Lab</span>
+        <span className="text-base font-semibold" suppressHydrationWarning translate="no">
+          Prompt Lab
+        </span>
         <button
           onClick={() => setLlmConfig({ isAutoTrading: !llmConfig.isAutoTrading })}
           className="flex items-center gap-2 rounded-lg border border-slate-700 px-2 py-1 text-xs hover:border-emerald-500"

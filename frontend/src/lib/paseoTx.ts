@@ -59,6 +59,22 @@ export async function sendPasTxViaMetamask({
   const sender = from || accounts?.[0];
   if (!sender) throw new Error("未获取到账户，请在 MetaMask 中解锁钱包。");
 
+  // balance pre-check
+  try {
+    const balanceHex: string = await ethereum.request({
+      method: "eth_getBalance",
+      params: [sender, "latest"],
+    });
+    const balanceNum = Number(BigInt(balanceHex));
+    const needed = BigInt(parseEther(amount.toString()).toString());
+    if (balanceNum < needed) {
+      throw new Error("余额不足，请先领取 PAS 测试币。");
+    }
+  } catch (err: any) {
+    if (err?.message) throw err;
+    throw new Error("获取余额失败，请重试或检查 MetaMask。");
+  }
+
   const txHash: string = await ethereum.request({
     method: "eth_sendTransaction",
     params: [

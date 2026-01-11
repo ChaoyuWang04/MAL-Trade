@@ -127,6 +127,11 @@ export function usePaseoWallet() {
       await ensureNetwork();
       const provider = new BrowserProvider(ethereum);
       const signer = await provider.getSigner();
+      const balance = await provider.getBalance(state.address);
+      const needed = parseEther(amount.toString());
+      if (balance < needed) {
+        throw new Error("PAS 余额不足，请先去 Faucet 领取测试币。");
+      }
       try {
         const tx = await signer.sendTransaction({
           to,

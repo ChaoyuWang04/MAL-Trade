@@ -62,6 +62,7 @@ export function useTradingLoop() {
     openOrders,
     setLlmThought,
     recordLlmTrade,
+    recordOnChainLog,
     onChain,
   } = useStore();
   const running = useRef(false);
@@ -219,9 +220,14 @@ export function useTradingLoop() {
             if (!parsed || typeof parsed !== "object") {
               throw new Error("LLM 返回为空");
             }
-            const normalizedAction = String(parsed.action || "").toUpperCase();
+            let normalizedAction = String(parsed.action || "").toUpperCase();
+            const shouldBuy =
+              parsed.should_buy === true ||
+              parsed.buy === true ||
+              String(parsed.decision || "").toLowerCase() === "yes" ||
+              String(parsed.signal || "").toLowerCase() === "buy";
             if (!["BUY", "SELL", "HOLD", "LIMIT", "CANCEL"].includes(normalizedAction)) {
-              throw new Error(`未知 action: ${parsed.action}`);
+              normalizedAction = shouldBuy ? "BUY" : "HOLD";
             }
             decision = {
               action: normalizedAction as LlmDecision["action"],
@@ -232,6 +238,9 @@ export function useTradingLoop() {
               order_id: parsed.order_id,
               note: parsed.note,
             };
+            if (decision.action === "BUY" && decision.size_pct === undefined) {
+              decision.size_pct = 0.1;
+            }
             const durationMs = Math.round(performance.now() - llmStartedAt);
             appendLog({
               time: new Date().toISOString(),
@@ -295,16 +304,16 @@ export function useTradingLoop() {
             action: decision.action,
             type: "trade",
           });
-            recordLlmTrade({
-              time: new Date().toISOString(),
-              candle_time: state.candle?.bar?.close_time,
-              action: decision.action,
-              side: decision.action === "CANCEL" ? undefined : decision.action,
-              price: decision.price,
-              size_pct: decision.size_pct,
-              equity: state.wallet?.equity,
-              note: decision.note,
-            });
+          recordLlmTrade({
+            time: new Date().toISOString(),
+            candle_time: state.candle?.bar?.close_time,
+            action: decision.action,
+            side: decision.action === "CANCEL" ? undefined : decision.action,
+            price: decision.price,
+            size_pct: decision.size_pct ?? 0.1,
+            equity: state.wallet?.equity,
+            note: decision.note,
+          });
           const onChainCfg = onChainRef.current;
           if (
             onChainCfg?.autoSendLlm &&
@@ -320,11 +329,26 @@ export function useTradingLoop() {
                 action: decision.action,
                 type: "trade",
               });
+              recordOnChainLog({
+                time: new Date().toISOString(),
+                action: decision.action,
+                amount: 0.1,
+                txHash: res.hash,
+                status: "sent",
+                note: "LLM 自动上链",
+              });
             } catch (err: any) {
               appendLog({
                 time: new Date().toISOString(),
                 thought: err?.message || "LLM on-chain trade failed",
                 type: "error",
+              });
+              recordOnChainLog({
+                time: new Date().toISOString(),
+                action: decision.action,
+                amount: 0.1,
+                status: "failed",
+                note: err?.message,
               });
             }
           }
@@ -356,5 +380,6 @@ export function useTradingLoop() {
     appendLog,
     setLlmThought,
     recordLlmTrade,
+    recordOnChainLog,
   ]);
 }

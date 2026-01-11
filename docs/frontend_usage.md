@@ -90,3 +90,6 @@ Visit `http://localhost:3000`.
 - Hydration guard: LLM Insight only appears after client hydration loads the saved thought; an empty panel at first render is expected and prevents server/client text mismatch.
 - Auto-trading uses the latest prompt/config immediately; toggling Auto will update the live loop without a refresh.
 - Browser extensions (e.g., Talisman) may inject errors; the app now silences known Talisman init errors, but disabling the extension is recommended if issues persist.
+- Prompt Lab 标题已固定并关闭翻译引起的水合差异，如仍有提示可刷新清除旧缓存。
+- LLM 输出如果包含 `should_buy/buy=true` 或 `decision:"yes"` 也会触发 BUY（默认 size_pct 0.1）。
+- On-chain PAS：连接 MetaMask 后若余额 < 0.11 PAS 会提示先去 Faucet；链上 BUY/SELL（手动或 LLM 自动）会记录在 On-chain Tx Log，失败原因也可见。

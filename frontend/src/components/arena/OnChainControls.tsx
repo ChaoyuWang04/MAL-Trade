@@ -13,6 +13,8 @@ export function OnChainControls() {
   const appendLog = useStore((s) => s.appendLog);
   const onChain = useStore((s) => s.onChain);
   const setOnChain = useStore((s) => s.setOnChain);
+  const onChainLogs = useStore((s) => s.onChainLogs);
+  const recordOnChainLog = useStore((s) => s.recordOnChainLog);
   const [pending, setPending] = useState<"BUY" | "SELL" | null>(null);
 
   const handleTrade = async (action: "BUY" | "SELL") => {
@@ -52,6 +54,17 @@ export function OnChainControls() {
     setPending(action);
     const to = action === "BUY" ? onChain.destinationBuy : onChain.destinationSell;
     try {
+      const bal = wallet.balance ? parseFloat(wallet.balance) : 0;
+      if (!bal || bal < 0.11) {
+        const msg = "PAS 余额不足，至少需要 0.11 PAS；请先去 Faucet 领取。";
+        appendLog({
+          time: new Date().toISOString(),
+          thought: msg,
+          type: "error",
+        });
+        setPending(null);
+        return;
+      }
       const res = await sendPasTxViaMetamask({
         to,
         amount: 0.1,
@@ -63,11 +76,26 @@ export function OnChainControls() {
         type: "trade",
         action,
       });
+      recordOnChainLog({
+        time: new Date().toISOString(),
+        action,
+        amount: 0.1,
+        txHash: res.hash,
+        status: "sent",
+        note: "手动按钮",
+      });
     } catch (e: any) {
       appendLog({
         time: new Date().toISOString(),
         thought: e?.message || "on-chain trade failed",
         type: "error",
+      });
+      recordOnChainLog({
+        time: new Date().toISOString(),
+        action,
+        amount: 0.1,
+        status: "failed",
+        note: e?.message,
       });
     } finally {
       setPending(null);
@@ -96,8 +124,17 @@ export function OnChainControls() {
         <div className="rounded bg-slate-800 px-2 py-1">
           Network: {wallet.isCorrectNetwork ? "Paseo" : "switching required"}
         </div>
-        {wallet.balance && <div className="rounded bg-slate-800 px-2 py-1">Balance: {wallet.balance} PAS</div>}
+        {wallet.balance && (
+          <div className="rounded bg-slate-800 px-2 py-1">
+            Balance: {wallet.balance} PAS
+          </div>
+        )}
       </div>
+      {wallet.balance && parseFloat(wallet.balance) < 0.11 && (
+        <div className="text-amber-300">
+          PAS 余额不足 0.11，发链上交易可能失败，请先领取 Faucet。
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => handleTestSend("BUY")}
@@ -146,6 +183,31 @@ export function OnChainControls() {
       <div className="text-slate-400">
         未检测到 PAS？点击连接将自动添加/切换到 Paseo 测试网。如余额不足，使用 Faucet 领取测试币。
       </div>
+      {onChainLogs.length > 0 && (
+        <div className="mt-2 space-y-1 rounded border border-slate-800 p-2 text-slate-200">
+          <div className="text-xs font-semibold text-emerald-300">On-chain Tx Log</div>
+          {onChainLogs
+            .slice()
+            .reverse()
+            .map((log, idx) => (
+              <div key={idx} className="text-xs text-slate-300">
+                <span className="font-mono text-slate-400">{new Date(log.time).toLocaleTimeString()}</span>{" "}
+                {log.action} {log.amount} PAS — {log.status}
+                {log.txHash && (
+                  <a
+                    className="ml-2 underline"
+                    href={`https://blockscout-passet-hub.parity-testnet.parity.io/tx/${log.txHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    hash
+                  </a>
+                )}
+                {log.note && <span className="ml-2 text-slate-400">{log.note}</span>}
+              </div>
+            ))}
+        </div>
+      )}
     </div>
   );
 }

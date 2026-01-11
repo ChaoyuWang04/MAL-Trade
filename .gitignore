@@ -17,6 +17,7 @@ backend/data/
 dist/
 build/
 .next/
+.next-new/
 
 # IDE
 .vscode/
