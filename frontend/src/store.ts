@@ -88,7 +88,7 @@ export const useStore = create<StoreState>((set) => ({
     apiKey: undefined,
     isAutoTrading: false,
   },
-  llmThought: typeof window !== "undefined" ? localStorage.getItem("llm_thought") ?? undefined : undefined,
+  llmThought: undefined,
   llmTrades: [],
   logs: [],
   onChain: {

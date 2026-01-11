@@ -67,9 +67,25 @@ export function useTradingLoop() {
   const running = useRef(false);
   const lastLiveUpdate = useRef<number>(0);
   const lastCandleKey = useRef<string | null>(null);
+  const llmConfigRef = useRef(llmConfig);
+  const openOrdersRef = useRef(openOrders);
+  const onChainRef = useRef(onChain);
   const MAX_SIZE_PCT = 0.2;
   const RECENT_BARS = 200;
   const MAX_CANDLES_STORE = 2000;
+
+  useEffect(() => {
+    llmConfigRef.current = llmConfig;
+  }, [llmConfig]);
+
+  useEffect(() => {
+    openOrdersRef.current = openOrders;
+  }, [openOrders]);
+
+  useEffect(() => {
+    onChainRef.current = onChain;
+  }, [onChain]);
+
   const buildContext = (state: GymState): LlmContext => ({
     price: state.candle?.bar?.close ?? null,
     wallet: state.wallet,
@@ -170,10 +186,12 @@ export function useTradingLoop() {
 
         // Step B: think
         let decision: LlmDecision = { action: "HOLD" };
-        if (llmConfig.isAutoTrading) {
-          const promptInjected = llmConfig.systemPrompt.replace(
+        const cfg = llmConfigRef.current;
+        const openOrdersLatest = openOrdersRef.current;
+        if (cfg?.isAutoTrading) {
+          const promptInjected = (cfg.systemPrompt || "").replace(
             "{{open_orders}}",
-            JSON.stringify(openOrders ?? [])
+            JSON.stringify(openOrdersLatest ?? [])
           );
           const context: LlmContext = buildContext(state);
           try {
@@ -190,8 +208,8 @@ export function useTradingLoop() {
               body: JSON.stringify({
                 system: promptInjected,
                 user: JSON.stringify(context),
-                model: llmConfig.model || "deepseek-chat",
-                apiKey: llmConfig.apiKey,
+                model: cfg.model || "deepseek-chat",
+                apiKey: cfg.apiKey,
               }),
             });
             const { content, error } = await resp.json();
@@ -277,19 +295,23 @@ export function useTradingLoop() {
             action: decision.action,
             type: "trade",
           });
-          recordLlmTrade({
-            time: new Date().toISOString(),
-            candle_time: state.candle?.bar?.close_time,
-            action: decision.action,
-            side: decision.action === "CANCEL" ? undefined : decision.action,
-            price: decision.price,
-            size_pct: decision.size_pct,
-            equity: state.wallet?.equity,
-            note: decision.note,
-          });
-          if (onChain.autoSendLlm && (decision.action === "BUY" || decision.action === "SELL")) {
+            recordLlmTrade({
+              time: new Date().toISOString(),
+              candle_time: state.candle?.bar?.close_time,
+              action: decision.action,
+              side: decision.action === "CANCEL" ? undefined : decision.action,
+              price: decision.price,
+              size_pct: decision.size_pct,
+              equity: state.wallet?.equity,
+              note: decision.note,
+            });
+          const onChainCfg = onChainRef.current;
+          if (
+            onChainCfg?.autoSendLlm &&
+            (decision.action === "BUY" || decision.action === "SELL")
+          ) {
             const to =
-              decision.action === "BUY" ? onChain.destinationBuy : onChain.destinationSell;
+              decision.action === "BUY" ? onChainCfg.destinationBuy : onChainCfg.destinationSell;
             try {
               const res = await sendPasTxViaMetamask({ to, amount: 0.1 });
               appendLog({
@@ -329,18 +351,10 @@ export function useTradingLoop() {
     };
   }, [
     session,
-    llmConfig.isAutoTrading,
-    llmConfig.systemPrompt,
-    llmConfig.model,
-    llmConfig.apiKey,
-    openOrders,
     setMarket,
     setOpenOrders,
     appendLog,
     setLlmThought,
     recordLlmTrade,
-    onChain.autoSendLlm,
-    onChain.destinationBuy,
-    onChain.destinationSell,
   ]);
 }

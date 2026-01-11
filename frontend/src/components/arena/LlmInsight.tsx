@@ -1,7 +1,18 @@
+ "use client";
+
 import { useStore } from "@/store";
+import { useEffect } from "react";
 
 export function LlmInsight() {
   const thought = useStore((s) => s.llmThought);
+  const setLlmThought = useStore((s) => s.setLlmThought);
+
+  useEffect(() => {
+    if (thought) return;
+    const saved = typeof window !== "undefined" ? localStorage.getItem("llm_thought") : null;
+    if (saved) setLlmThought(saved);
+  }, [setLlmThought, thought]);
+
   if (!thought) return null;
 
   return (

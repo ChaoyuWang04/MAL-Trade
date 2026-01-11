@@ -87,5 +87,6 @@ Visit `http://localhost:3000`.
 - If chart shows nothing: ensure session_id is valid and backend running.
 - The Stream panel now logs session attach results and state fetch issues; check it for errors.
 - If LLM errors: check `DEEPSEEK_API_KEY`, and ensure the LLM returns valid JSON.
-- Hydration errors can occur if server/client text mismatch; titles are now fixed to "Prompt Lab".
+- Hydration guard: LLM Insight only appears after client hydration loads the saved thought; an empty panel at first render is expected and prevents server/client text mismatch.
+- Auto-trading uses the latest prompt/config immediately; toggling Auto will update the live loop without a refresh.
 - Browser extensions (e.g., Talisman) may inject errors; the app now silences known Talisman init errors, but disabling the extension is recommended if issues persist.
