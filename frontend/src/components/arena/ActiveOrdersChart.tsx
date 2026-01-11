@@ -1,5 +1,14 @@
 import { useEffect, useRef } from "react";
-import { createChart, ColorType, LineStyle, ISeriesApi, CandlestickData, SeriesMarker } from "lightweight-charts";
+import {
+  createChart,
+  ColorType,
+  LineStyle,
+  ISeriesApi,
+  CandlestickData,
+  SeriesMarker,
+  UTCTimestamp,
+  Time,
+} from "lightweight-charts";
 import type { Candle, OpenOrder, LlmTrade } from "@/store";
 
 type Props = {
@@ -54,19 +63,19 @@ export function ActiveOrdersChart({ candles, openOrders, equity, trades }: Props
       return Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN;
     };
 
-    const data: CandlestickData[] = candles
-      .map((c) => {
+    const data = candles
+      .reduce<CandlestickData[]>((acc, c) => {
         const ts = parseTs(c.close_time || c.open_time);
-        if (!Number.isFinite(ts)) return null;
-        return {
-          time: ts,
+        if (!Number.isFinite(ts)) return acc;
+        acc.push({
+          time: ts as UTCTimestamp,
           open: c.open,
           high: c.high,
           low: c.low,
           close: c.close,
-        };
-      })
-      .filter((d): d is CandlestickData => d !== null)
+        });
+        return acc;
+      }, [])
       .sort((a, b) => Number(a.time) - Number(b.time));
 
     if (data.length === 0) return;
@@ -86,20 +95,19 @@ export function ActiveOrdersChart({ candles, openOrders, equity, trades }: Props
     });
 
     if (trades && trades.length) {
-      const markers: SeriesMarker<"Candlestick">[] = trades
-        .map((t) => {
-          const ts = parseTs(t.candle_time || t.time);
-          if (!Number.isFinite(ts) || !t.price) return null;
-          const isSell = (t.action || "").toUpperCase() === "SELL";
-          return {
-            time: ts,
-            position: "aboveBar",
-            color: isSell ? "#ef4444" : "#22c55e",
-            shape: isSell ? "arrowDown" : "arrowUp",
-            text: isSell ? "Sell" : "Buy",
-          } as SeriesMarker<"Candlestick">;
-        })
-        .filter((m): m is SeriesMarker<"Candlestick"> => m !== null);
+      const markers = trades.reduce<SeriesMarker<Time>[]>((acc, t) => {
+        const ts = parseTs(t.candle_time || t.time);
+        if (!Number.isFinite(ts) || !t.price) return acc;
+        const isSell = (t.action || "").toUpperCase() === "SELL";
+        acc.push({
+          time: ts as UTCTimestamp,
+          position: "aboveBar",
+          color: isSell ? "#ef4444" : "#22c55e",
+          shape: isSell ? "arrowDown" : "arrowUp",
+          text: isSell ? "Sell" : "Buy",
+        });
+        return acc;
+      }, []);
       series.setMarkers(markers);
     }
   }, [candles, openOrders, trades]);

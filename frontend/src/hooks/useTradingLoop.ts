@@ -339,7 +339,7 @@ export function useTradingLoop() {
       scheduleNext(session.mode, 0);
     };
 
-    const scheduleNext = (mode: string, backlogRemaining: number) => {
+    const scheduleNext = (mode: string, backlogRemaining = 0) => {
       const delay = mode === "live" && backlogRemaining === 0 ? 1000 : 0;
       setTimeout(tick, delay);
     };
