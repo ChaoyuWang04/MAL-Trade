@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useStore, API_BASE } from "@/store";
 import { ToggleLeft, ToggleRight } from "lucide-react";
+import { sendPasTxViaMetamask } from "@/lib/paseoTx";
 
 const chips = ["{{price}}", "{{rsi}}", "{{open_orders}}"];
 
@@ -14,6 +15,8 @@ export function PromptLab() {
   const [thinkError, setThinkError] = useState<string | null>(null);
   const setLlmThought = useStore((s) => s.setLlmThought);
   const appendLog = useStore((s) => s.appendLog);
+  const recordOnChainLog = useStore((s) => s.recordOnChainLog);
+  const onChain = useStore((s) => s.onChain);
   const session = useStore((s) => s.session);
   const RECENT_BARS = 200;
 
@@ -73,6 +76,68 @@ export function PromptLab() {
         thought: "LLM think completed",
         type: "info",
       });
+      // Attempt to parse LLM output and trigger on-chain BUY if signaled
+      try {
+        const parsed = typeof content === "string" ? JSON.parse(content) : content;
+        const action = String(parsed?.action || parsed?.side || "").toUpperCase();
+        const buySignal =
+          action === "BUY" ||
+          (action === "LIMIT" && String(parsed?.side || "").toUpperCase() === "BUY") ||
+          parsed?.should_buy === true ||
+          parsed?.buy === true ||
+          String(parsed?.decision || "").toLowerCase() === "yes" ||
+          String(parsed?.signal || "").toLowerCase() === "buy";
+        if (buySignal && onChain.autoSendLlm) {
+          if (!onChain.wallet) {
+            appendLog({
+              time: new Date().toISOString(),
+              thought: "检测到 BUY 信号，但钱包未连接，跳过链上交易。",
+              type: "error",
+            });
+          } else {
+            const to = onChain.destinationBuy;
+            const amount = 0.1;
+            appendLog({
+              time: new Date().toISOString(),
+              thought: `LLM ThinkOnce 触发链上 BUY ${amount} PAS -> ${to}`,
+              type: "trade",
+              action: "BUY",
+            });
+            try {
+              const res = await sendPasTxViaMetamask({ to, amount, from: onChain.wallet });
+              recordOnChainLog({
+                time: new Date().toISOString(),
+                action: "BUY",
+                amount,
+                txHash: res.hash,
+                status: "sent",
+                note: "Think Once",
+              });
+              appendLog({
+                time: new Date().toISOString(),
+                thought: `链上 BUY 发送成功 (${res.hash})`,
+                type: "trade",
+                action: "BUY",
+              });
+            } catch (err: any) {
+              recordOnChainLog({
+                time: new Date().toISOString(),
+                action: "BUY",
+                amount,
+                status: "failed",
+                note: err?.message,
+              });
+              appendLog({
+                time: new Date().toISOString(),
+                thought: err?.message || "链上 BUY 失败",
+                type: "error",
+              });
+            }
+          }
+        }
+      } catch {
+        // ignore parse errors; not all responses are JSON
+      }
     } catch (e: any) {
       setThinkError(e?.message || "LLM think failed");
     } finally {
@@ -81,7 +146,11 @@ export function PromptLab() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-3 rounded-xl bg-slate-900 p-4 text-sm text-slate-100">
+    <div
+      className="flex h-full flex-col gap-3 rounded-xl bg-slate-900 p-4 text-sm text-slate-100"
+      translate="no"
+      suppressHydrationWarning
+    >
       <div className="flex items-center justify-between">
         <span className="text-base font-semibold" suppressHydrationWarning translate="no">
           Prompt Lab
